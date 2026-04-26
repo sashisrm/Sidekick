@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(pip3 --version)",
+      "Bash(python3 -c \"import secrets; print\\(secrets.token_hex\\(32\\)\\)\")",
+      "Bash(docker info:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(tee /tmp/sidekick_build.log)",
+      "Bash(docker info *)",
+      "Bash(docker-compose down *)",
+      "Bash(docker-compose -f /Users/sashi/Desktop/TF_projects/SideKick/docker-compose.yml ps)",
+      "Bash(docker build *)",
+      "Bash(docker run *)",
+      "Bash(docker builder *)",
+      "Bash(docker image *)",
+      "Bash(docker exec *)",
+      "Bash(docker restart *)"
+    ]
+  }
+}

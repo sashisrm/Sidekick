@@ -1,0 +1,57 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+
+# Async DB
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# Settings
+pydantic-settings==2.6.1
+pydantic==2.10.3
+email-validator==2.2.0
+
+# Claude / Anthropic
+anthropic==0.40.0
+
+# Embeddings
+sentence-transformers==3.3.1
+
+# Vector DB
+chromadb==0.6.3
+
+# BM25
+rank_bm25==0.2.2
+
+# Document parsing
+pypdf==5.1.0
+pdfplumber==0.11.4
+python-docx==1.1.2
+openpyxl==3.1.5
+python-pptx==1.0.2
+mistune==3.0.2
+
+# Web scraping
+playwright==1.49.0
+beautifulsoup4==4.12.3
+httpx==0.28.1
+
+# Background jobs
+arq==0.26.1
+
+# Rate limiting
+slowapi==0.1.9
+
+# Redis client (for health check)
+redis[asyncio]==5.2.1
+
+# Utilities
+python-dateutil==2.9.0.post0
+aiofiles==24.1.0
