@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SideKick — Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 40px 24px 60px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    #canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0; opacity: 0.25;
+    }
+
+    .content { position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    h1 {
+      text-align: center; font-size: 30px; font-weight: 700;
+      color: #f8fafc; margin-bottom: 6px; letter-spacing: -0.5px;
+      animation: fadeDown 0.6s ease both;
+    }
+    .subtitle {
+      text-align: center; color: #64748b; font-size: 14px;
+      margin-bottom: 32px; animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ── Status bar ── */
+    .status-bar {
+      max-width: 900px; margin: 0 auto 40px;
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      animation: fadeDown 0.6s 0.15s ease both;
+    }
+    .status-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: #475569;
+      padding: 5px 12px; background: rgba(255,255,255,0.03);
+      border-radius: 20px; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .sdot {
+      width: 7px; height: 7px; border-radius: 50%;
+      animation: sdotPulse 2s ease infinite;
+    }
+    @keyframes sdotPulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(1.5); opacity: 0.6; }
+    }
+    .sd-green  { background:#4ade80; box-shadow:0 0 6px #4ade80; }
+    .sd-purple { background:#c084fc; box-shadow:0 0 6px #c084fc; animation-delay:.3s; }
+    .sd-orange { background:#fb923c; box-shadow:0 0 6px #fb923c; animation-delay:.6s; }
+    .sd-red    { background:#f87171; box-shadow:0 0 6px #f87171; animation-delay:.9s; }
+    .sd-cyan   { background:#22d3ee; box-shadow:0 0 6px #22d3ee; animation-delay:1.2s; }
+
+    /* ═══════════════════════════════════════
+       CONNECTION MAP (the main visual)
+    ═══════════════════════════════════════ */
+    .map-section {
+      max-width: 900px; margin: 0 auto 56px;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+    .map-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: #475569; margin-bottom: 24px;
+      text-align: center;
+    }
+
+    /* The vertical column of layer nodes + connectors */
+    .map {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+
+    /* Each layer node */
+    .map-node {
+      width: 100%; max-width: 640px;
+      border-radius: 14px; padding: 18px 24px;
+      border: 1px solid; cursor: default;
+      transition: box-shadow 0.25s, transform 0.2s;
+      position: relative;
+    }
+    .map-node:hover { transform: scale(1.015); }
+
+    .mn-client { background:#1a1f2e; border-color:#2d5a9e; }
+    .mn-api    { background:#1e1a30; border-color:#5b3fa0; }
+    .mn-ai     { background:#112218; border-color:#2d6a4f; }
+    .mn-data   { background:#251d0f; border-color:#92400e; }
+    .mn-infra  { background:#1f0f0f; border-color:#991b1b; }
+
+    .mn-client:hover { box-shadow: 0 0 24px rgba(45,90,158,0.5); }
+    .mn-api:hover    { box-shadow: 0 0 24px rgba(91,63,160,0.5); }
+    .mn-ai:hover     { box-shadow: 0 0 24px rgba(45,106,79,0.5); }
+    .mn-data:hover   { box-shadow: 0 0 24px rgba(146,64,14,0.5); }
+    .mn-infra:hover  { box-shadow: 0 0 24px rgba(153,27,27,0.5); }
+
+    .mn-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    }
+    .mn-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .mn-name { font-size: 14px; font-weight: 700; }
+    .mn-sub  { font-size: 11px; color: #64748b; }
+
+    .mn-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .mn-tag  {
+      font-size: 10px; padding: 3px 9px; border-radius: 20px;
+      font-weight: 500; border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8; background: rgba(255,255,255,0.04);
+    }
+
+    /* ── Connector between nodes ── */
+    .connector {
+      display: flex; flex-direction: column; align-items: center;
+      position: relative; width: 100%; max-width: 640px;
+      padding: 0; z-index: 2;
+    }
+
+    /* The vertical animated line */
+    .conn-line {
+      width: 2px; height: 28px;
+      background: linear-gradient(180deg, var(--c1), var(--c2));
+      position: relative; overflow: hidden;
+    }
+    .conn-line::after {
+      content: '';
+      position: absolute; top: -100%; left: 0;
+      width: 100%; height: 50%;
+      background: white;
+      opacity: 0.6;
+      animation: lineTravel 1.8s linear infinite;
+    }
+    @keyframes lineTravel {
+      0%   { top: -100%; opacity: 0; }
+      20%  { opacity: 0.6; }
+      80%  { opacity: 0.6; }
+      100% { top: 100%;  opacity: 0; }
+    }
+
+    /* The info card sitting on the line */
+    .conn-card {
+      background: #0f1117;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 20px;
+      display: flex; gap: 24px;
+      align-items: flex-start;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      margin: 0;
+      transition: border-color 0.2s;
+    }
+    .conn-card:hover { border-color: rgba(255,255,255,0.22); }
+
+    .conn-col { display: flex; flex-direction: column; gap: 4px; }
+    .conn-dir {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: #475569; margin-bottom: 2px;
+    }
+    .conn-item {
+      display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8;
+    }
+    .conn-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+    .conn-proto {
+      font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 5px; background: rgba(255,255,255,0.06);
+      color: #64748b; white-space: nowrap;
+    }
+
+    /* Downward arrow tip */
+    .conn-arrow {
+      font-size: 13px; color: #334155; line-height: 1;
+      animation: arrowBob 1.4s ease infinite;
+    }
+    @keyframes arrowBob {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(3px); }
+    }
+
+    /* ═══════════════════════════════════════
+       DETAIL LAYERS (expanded cards)
+    ═══════════════════════════════════════ */
+    .layers-section {
+      max-width: 1100px; margin: 0 auto 48px;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+    .section-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: #475569; margin-bottom: 20px;
+    }
+
+    .layer {
+      border-radius: 14px; padding: 20px 24px;
+      border: 1px solid rgba(255,255,255,0.07);
+      margin-bottom: 16px;
+      transition: border-color 0.25s;
+    }
+    .layer:hover { border-color: rgba(255,255,255,0.14); }
+
+    .layer-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; margin-bottom: 14px; opacity: 0.55;
+    }
+    .layer-client { background:#1a1f2e; }
+    .layer-api    { background:#141a28; }
+    .layer-ai     { background:#11181f; }
+    .layer-data   { background:#131a1a; }
+    .layer-infra  { background:#181318; }
+
+    .boxes { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .box {
+      border-radius: 10px; padding: 12px 16px;
+      flex: 1 1 150px; min-width: 130px;
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+      cursor: default; position: relative; overflow: hidden;
+    }
+    .box::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent);
+      transition: left 0.4s;
+    }
+    .box:hover::before { left: 150%; }
+    .box:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+
+    .box-title { font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    .box-detail { font-size: 11px; color: #94a3b8; line-height: 1.55; }
+    .tag {
+      display: inline-block; font-size: 10px; padding: 2px 7px;
+      border-radius: 20px; margin-top: 5px; font-weight: 500;
+    }
+
+    .blue   { background:#1e3a5f; border-color:#2d5a9e; }
+    .blue   .box-title { color:#60a5fa; }
+    .blue   .tag { background:#1d4ed8; color:#bfdbfe; }
+    .blue:hover { box-shadow:0 6px 20px rgba(30,58,95,.5); }
+
+    .purple { background:#2d1f4a; border-color:#5b3fa0; }
+    .purple .box-title { color:#c084fc; }
+    .purple .tag { background:#6d28d9; color:#ede9fe; }
+    .purple:hover { box-shadow:0 6px 20px rgba(45,31,74,.5); }
+
+    .green  { background:#1a3a2a; border-color:#2d6a4f; }
+    .green  .box-title { color:#4ade80; }
+    .green  .tag { background:#166534; color:#bbf7d0; }
+    .green:hover { box-shadow:0 6px 20px rgba(26,58,42,.5); }
+
+    .orange { background:#3a2a1a; border-color:#92400e; }
+    .orange .box-title { color:#fb923c; }
+    .orange .tag { background:#c2410c; color:#fed7aa; }
+    .orange:hover { box-shadow:0 6px 20px rgba(58,42,26,.5); }
+
+    .red    { background:#3a1a1a; border-color:#991b1b; }
+    .red    .box-title { color:#f87171; }
+    .red    .tag { background:#b91c1c; color:#fecaca; }
+    .red:hover { box-shadow:0 6px 20px rgba(58,26,26,.5); }
+
+    .cyan   { background:#1a2f3a; border-color:#155e75; }
+    .cyan   .box-title { color:#22d3ee; }
+    .cyan   .tag { background:#0e7490; color:#cffafe; }
+    .cyan:hover { box-shadow:0 6px 20px rgba(26,47,58,.5); }
+
+    .gray   { background:#1e2030; border-color:#334155; }
+    .gray   .box-title { color:#94a3b8; }
+    .gray   .tag { background:#334155; color:#cbd5e1; }
+
+    /* ═══════════════════════════════════════
+       PIPELINE SECTION
+    ═══════════════════════════════════════ */
+    .pipeline-section {
+      max-width: 1100px; margin: 0 auto 48px;
+      animation: fadeUp 0.7s 0.4s ease both;
+    }
+
+    .pipeline {
+      display: flex; align-items: center; flex-wrap: wrap;
+      row-gap: 10px; margin-bottom: 14px;
+      padding: 14px 16px; border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .pipeline:hover { background: rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+
+    .pipeline-label {
+      font-size: 11px; color: #475569; width: 150px;
+      flex-shrink: 0; font-weight: 700; letter-spacing: 0.5px;
+    }
+
+    .step {
+      padding: 7px 12px; border-radius: 8px;
+      font-size: 11px; font-weight: 500; white-space: nowrap;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .step:hover { transform: scale(1.07); z-index: 2; }
+
+    .arrow {
+      font-size: 13px; color: #334155; padding: 0 5px;
+      display: inline-block; animation: arrowBob 1.6s ease infinite;
+    }
+    .pipeline:nth-child(2) .arrow { animation-delay: 0.4s; }
+    .pipeline:nth-child(3) .arrow { animation-delay: 0.8s; }
+    .pipeline:nth-child(4) .arrow { animation-delay: 1.2s; }
+
+    .step-blue   { background:#1e3a5f; color:#60a5fa; border:1px solid #2d5a9e; }
+    .step-purple { background:#2d1f4a; color:#c084fc; border:1px solid #5b3fa0; }
+    .step-green  { background:#1a3a2a; color:#4ade80; border:1px solid #2d6a4f; }
+    .step-orange { background:#3a2a1a; color:#fb923c; border:1px solid #92400e; }
+    .step-cyan   { background:#1a2f3a; color:#22d3ee; border:1px solid #155e75; }
+    .step-red    { background:#3a1a1a; color:#f87171; border:1px solid #991b1b; }
+
+    /* ── Legend ── */
+    .legend {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; gap: 16px;
+      animation: fadeUp 0.6s 0.5s ease both;
+    }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:#64748b; }
+    .legend-dot  { width:9px; height:9px; border-radius:50%; flex-shrink:0; animation:sdotPulse 2.5s ease infinite; }
+
+    /* ══════════════════════════════════
+       SEQUENCE DIAGRAM
+    ══════════════════════════════════ */
+    .seq-section {
+      max-width: 1100px; margin: 0 auto 56px;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+    .seq-tabs {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+    }
+    .seq-tab {
+      padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03); color: #64748b; font-size: 12px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .seq-tab:hover  { border-color: rgba(255,255,255,0.25); color: #94a3b8; }
+    .seq-tab.active { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.3); color: #f1f5f9; }
+
+    .seq-diagram {
+      background: #0a0d14; border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; overflow: hidden;
+    }
+
+    /* Actor header row */
+    .seq-actors {
+      display: flex; border-bottom: 1px solid rgba(255,255,255,0.07);
+      position: sticky; top: 0; z-index: 10; background: #0a0d14;
+    }
+    .seq-actor-spacer { width: 120px; flex-shrink: 0; }
+    .seq-actor {
+      flex: 1; text-align: center; padding: 14px 4px; font-size: 11px;
+      font-weight: 700; letter-spacing: 0.5px; border-left: 1px solid rgba(255,255,255,0.05);
+      position: relative;
+    }
+    .seq-actor-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+    .seq-actor-line {
+      position: absolute; bottom: 0; left: 50%; width: 1px;
+      height: 8px; background: currentColor; opacity: 0.3;
+    }
+
+    /* Body */
+    .seq-body { padding: 0; }
+    .seq-row {
+      display: flex; align-items: center; min-height: 52px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      position: relative; opacity: 0;
+      animation: seqRowIn 0.3s ease forwards;
+    }
+    @keyframes seqRowIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .seq-step-num {
+      width: 120px; flex-shrink: 0; padding: 0 16px;
+      font-size: 10px; color: #334155; font-family: monospace;
+    }
+    .seq-lifelines {
+      flex: 1; display: flex; position: relative;
+      height: 52px; align-items: center;
+    }
+    /* Vertical lifeline per actor */
+    .seq-vline {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: rgba(255,255,255,0.06);
+    }
+    /* Horizontal message arrow */
+    .seq-msg {
+      position: absolute; display: flex; align-items: center;
+      height: 24px; z-index: 2;
+    }
+    .seq-msg-line {
+      height: 2px; border-radius: 1px; flex: 1;
+      animation: drawLine 0.4s ease forwards;
+      transform-origin: left center;
+    }
+    @keyframes drawLine {
+      from { transform: scaleX(0); opacity: 0; }
+      to   { transform: scaleX(1); opacity: 1; }
+    }
+    .seq-msg-line.dashed {
+      background: repeating-linear-gradient(90deg,currentColor 0,currentColor 4px,transparent 4px,transparent 8px) !important;
+    }
+    .seq-arrowhead { font-size: 10px; flex-shrink: 0; }
+    .seq-label {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 10px; white-space: nowrap; padding: 1px 6px;
+      background: #0a0d14; border-radius: 4px; color: #64748b;
+    }
+    /* Activation box on a lifeline */
+    .seq-activation {
+      position: absolute; width: 10px; background: rgba(255,255,255,0.12);
+      border-radius: 3px; z-index: 1;
+    }
+    /* Self-note box */
+    .seq-note {
+      position: absolute; font-size: 9px; color: #64748b;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 4px; padding: 2px 6px; white-space: nowrap; z-index: 3;
+      top: 50%; transform: translateY(-50%);
+    }
+
+    /* ══════════════════════════════════
+       LOW LEVEL DESIGN
+    ══════════════════════════════════ */
+    .lld-section {
+      max-width: 1100px; margin: 0 auto 56px;
+      animation: fadeUp 0.7s 0.35s ease both;
+    }
+    .lld-block {
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px; padding: 24px; margin-bottom: 20px;
+    }
+    .lld-block-title {
+      font-size: 13px; font-weight: 700; color: #94a3b8;
+      margin-bottom: 18px; letter-spacing: 0.3px;
+    }
+
+    /* DB tables */
+    .lld-tables { display: flex; flex-wrap: wrap; gap: 12px; }
+    .lld-table {
+      background: #0a0d14; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; overflow: hidden; flex: 1 1 200px; min-width: 180px;
+      transition: box-shadow 0.2s;
+    }
+    .lld-table:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .lld-table-name {
+      padding: 8px 12px; font-size: 12px; font-weight: 700;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+    }
+    .lld-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+      font-size: 11px;
+    }
+    .lld-row:last-child { border-bottom: none; }
+    .lld-pk { background: rgba(251,191,36,0.06); }
+    .lld-fk { background: rgba(96,165,250,0.06); }
+    .lld-col { color: #e2e8f0; font-family: monospace; }
+    .lld-type { color: #475569; font-size: 10px; text-align: right; }
+
+    /* API table */
+    .lld-api {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .lld-api thead tr { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .lld-api th {
+      text-align: left; padding: 8px 12px; color: #475569;
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .lld-api td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
+    .lld-api tr:hover td { background: rgba(255,255,255,0.02); }
+    .lld-api td:nth-child(3) { color: #64748b; }
+    .lld-api td:nth-child(2) { font-family: monospace; font-size: 11px; color: #e2e8f0; }
+
+    .method {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 4px; font-family: monospace;
+    }
+    .method.get  { background:#14532d; color:#4ade80; }
+    .method.post { background:#1e3a5f; color:#60a5fa; }
+    .method.del  { background:#450a0a; color:#f87171; }
+    .method.put  { background:#3a2a1a; color:#fb923c; }
+
+    /* Module map */
+    .lld-modules { display: flex; flex-wrap: wrap; gap: 14px; }
+    .lld-mod-group {
+      flex: 1 1 280px; background: #0a0d14;
+      border: 1px solid rgba(255,255,255,0.07); border-radius: 10px;
+      padding: 14px;
+    }
+    .lld-mod-group-title { font-size: 11px; font-weight: 700; margin-bottom: 10px; font-family: monospace; }
+    .lld-mod { font-size: 11px; color: #64748b; margin-bottom: 6px; font-family: monospace; }
+    .lld-dep { color: #334155; font-size: 10px; }
+
+    /* ══════════════════════════════════
+       REQUEST TRAVEL SIMULATOR
+    ══════════════════════════════════ */
+    .sim-section {
+      max-width: 900px; margin: 0 auto 56px;
+      animation: fadeUp 0.7s 0.25s ease both;
+    }
+    .sim-hint {
+      text-align: center; color: #475569; font-size: 12px; margin-bottom: 20px;
+    }
+
+    .sim-buttons {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      justify-content: center; margin-bottom: 32px;
+    }
+    .sim-btn {
+      padding: 9px 18px; border-radius: 8px; border: 1px solid var(--bc);
+      background: transparent; color: var(--bc); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .sim-btn:hover {
+      background: color-mix(in srgb, var(--bc) 15%, transparent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px color-mix(in srgb, var(--bc) 30%, transparent);
+    }
+    .sim-btn.active {
+      background: color-mix(in srgb, var(--bc) 20%, transparent);
+      box-shadow: 0 0 0 2px var(--bc);
+    }
+
+    /* ── Track ── */
+    .sim-track {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: nowrap; overflow-x: auto;
+      padding: 24px 16px; background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Node ── */
+    .sim-node {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      min-width: 88px; padding: 14px 10px; border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
+      transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+      flex-shrink: 0;
+    }
+    .sim-node.active {
+      border-color: var(--node-color, #60a5fa);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--node-color, #60a5fa) 40%, transparent);
+      background: color-mix(in srgb, var(--node-color, #60a5fa) 10%, transparent);
+    }
+    .sim-node.done { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
+
+    #sn-browser  { --node-color: #60a5fa; }
+    #sn-api      { --node-color: #c084fc; }
+    #sn-ai       { --node-color: #4ade80; }
+    #sn-data     { --node-color: #fb923c; }
+    #sn-infra    { --node-color: #f87171; }
+
+    .sim-icon { font-size: 24px; }
+    .sim-node-name { font-size: 11px; font-weight: 700; color: #64748b; }
+    .sim-node-action {
+      font-size: 9px; color: #94a3b8; text-align: center;
+      min-height: 24px; line-height: 1.4; max-width: 80px;
+    }
+
+    /* ── Connector + animated packet ── */
+    .sim-conn {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 5px; flex-shrink: 0; min-width: 60px;
+    }
+    .sim-conn-line {
+      width: 100%; height: 3px; background: rgba(255,255,255,0.07);
+      border-radius: 2px; position: relative; overflow: visible;
+      min-width: 55px;
+    }
+    .sim-packet {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #60a5fa; box-shadow: 0 0 10px #60a5fa;
+      left: -12px; opacity: 0;
+      transition: none;
+    }
+    .sim-packet.traveling {
+      transition: left 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.15s;
+    }
+    .sim-packet.traveling.go { left: calc(100% + 2px); opacity: 1; }
+    .sim-packet.return-travel {
+      transition: left 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.15s;
+      background: #4ade80; box-shadow: 0 0 10px #4ade80;
+    }
+    .sim-packet.return-travel.go { left: -12px; opacity: 1; }
+
+    .sim-conn-proto {
+      font-size: 9px; font-weight: 600; color: #475569;
+      background: rgba(255,255,255,0.04); padding: 2px 6px;
+      border-radius: 4px; white-space: nowrap;
+    }
+
+    /* ── Log ── */
+    .sim-log {
+      background: #0a0d14; border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px; padding: 16px 20px; min-height: 120px;
+      font-size: 12px; font-family: "SF Mono", "Fira Code", monospace;
+    }
+    .sim-log-placeholder { color: #334155; text-align: center; padding-top: 16px; }
+    .sim-log-entry {
+      display: flex; gap: 10px; margin-bottom: 8px;
+      opacity: 0; transform: translateX(-8px);
+      animation: logSlide 0.3s ease forwards;
+    }
+    @keyframes logSlide {
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .log-time { color: #334155; flex-shrink: 0; }
+    .log-layer { font-weight: 700; flex-shrink: 0; min-width: 90px; }
+    .log-msg { color: #94a3b8; }
+    .log-arrow-up { color: #4ade80; }
+    .log-arrow-down { color: #60a5fa; }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="content">
+
+  <h1>SideKick Architecture</h1>
+  <p class="subtitle">AI-powered product intelligence platform · How the layers connect</p>
+
+  <div class="status-bar">
+    <div class="status-item"><div class="sdot sd-green"></div>Frontend :3000</div>
+    <div class="status-item"><div class="sdot sd-purple"></div>API :8000</div>
+    <div class="status-item"><div class="sdot sd-orange"></div>Postgres :5432</div>
+    <div class="status-item"><div class="sdot sd-red"></div>Redis :6379</div>
+    <div class="status-item"><div class="sdot sd-cyan"></div>Claude Sonnet</div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       CONNECTION MAP
+  ══════════════════════════════════ -->
+  <div class="map-section">
+    <div class="map-title">Layer Connection Map</div>
+    <div class="map">
+
+      <!-- 1. BROWSER -->
+      <div class="map-node mn-client">
+        <div class="mn-header">
+          <div class="mn-icon" style="background:#1e3a5f">🖥️</div>
+          <div>
+            <div class="mn-name" style="color:#60a5fa">Browser (React SPA)</div>
+            <div class="mn-sub">What the user sees and interacts with</div>
+          </div>
+        </div>
+        <div class="mn-tags">
+          <span class="mn-tag">Chat Page</span>
+          <span class="mn-tag">Documents Page</span>
+          <span class="mn-tag">Competitive Page</span>
+          <span class="mn-tag">Products Page</span>
+          <span class="mn-tag">localhost:3000</span>
+        </div>
+      </div>
+
+      <!-- CONNECTOR 1→2 -->
+      <div class="connector">
+        <div class="conn-line" style="--c1:#2d5a9e;--c2:#5b3fa0"></div>
+        <div class="conn-card">
+          <div class="conn-col">
+            <div class="conn-dir">↓ Browser sends</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#60a5fa"></div>Login / signup form data</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#60a5fa"></div>File uploads (PDF, DOCX…)</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#60a5fa"></div>Chat messages &amp; queries</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#60a5fa"></div>Competitor URLs to track</div>
+          </div>
+          <div class="conn-col">
+            <div class="conn-dir">↑ API responds</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>JWT auth token</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Document status updates</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Streamed AI answers (SSE)</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Competitor snapshots</div>
+          </div>
+          <div class="conn-col" style="justify-content:center;align-self:center">
+            <span class="conn-proto">HTTP REST</span>
+            <span class="conn-proto" style="margin-top:4px">SSE Stream</span>
+          </div>
+        </div>
+        <div class="conn-line" style="--c1:#5b3fa0;--c2:#2d5a9e"></div>
+        <div class="conn-arrow">▼</div>
+      </div>
+
+      <!-- 2. API -->
+      <div class="map-node mn-api">
+        <div class="mn-header">
+          <div class="mn-icon" style="background:#2d1f4a">⚡</div>
+          <div>
+            <div class="mn-name" style="color:#c084fc">FastAPI Backend</div>
+            <div class="mn-sub">Handles all requests, authentication, and business logic</div>
+          </div>
+        </div>
+        <div class="mn-tags">
+          <span class="mn-tag">/auth</span>
+          <span class="mn-tag">/documents</span>
+          <span class="mn-tag">/chat</span>
+          <span class="mn-tag">/competitors</span>
+          <span class="mn-tag">/competitive</span>
+          <span class="mn-tag">/products</span>
+          <span class="mn-tag">localhost:8000</span>
+        </div>
+      </div>
+
+      <!-- CONNECTOR 2→3 -->
+      <div class="connector">
+        <div class="conn-line" style="--c1:#5b3fa0;--c2:#2d6a4f"></div>
+        <div class="conn-card">
+          <div class="conn-col">
+            <div class="conn-dir">↓ API triggers</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Retrieve relevant document chunks</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Pass user query + context to Claude</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#c084fc"></div>Send competitor data for analysis</div>
+          </div>
+          <div class="conn-col">
+            <div class="conn-dir">↑ AI returns</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Streamed answer tokens</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Source citations</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Structured competitive report</div>
+          </div>
+          <div class="conn-col" style="justify-content:center;align-self:center">
+            <span class="conn-proto">Python async</span>
+            <span class="conn-proto" style="margin-top:4px">Anthropic SDK</span>
+          </div>
+        </div>
+        <div class="conn-line" style="--c1:#2d6a4f;--c2:#5b3fa0"></div>
+        <div class="conn-arrow">▼</div>
+      </div>
+
+      <!-- 3. AI -->
+      <div class="map-node mn-ai">
+        <div class="mn-header">
+          <div class="mn-icon" style="background:#1a3a2a">🤖</div>
+          <div>
+            <div class="mn-name" style="color:#4ade80">AI Layer — Agents &amp; Retrieval</div>
+            <div class="mn-sub">Finds relevant content, builds prompts, calls Claude</div>
+          </div>
+        </div>
+        <div class="mn-tags">
+          <span class="mn-tag">RAG Agent</span>
+          <span class="mn-tag">Competitive Agent</span>
+          <span class="mn-tag">Hybrid Retrieval (BM25 + vectors)</span>
+          <span class="mn-tag">Claude Sonnet · Claude Haiku</span>
+          <span class="mn-tag">MiniLM Embeddings</span>
+        </div>
+      </div>
+
+      <!-- CONNECTOR 3→4 -->
+      <div class="connector">
+        <div class="conn-line" style="--c1:#2d6a4f;--c2:#92400e"></div>
+        <div class="conn-card">
+          <div class="conn-col">
+            <div class="conn-dir">↓ AI reads / writes</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Search ChromaDB for similar chunks</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Run BM25 keyword search</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Fetch competitor snapshots from Postgres</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#4ade80"></div>Store new document embeddings</div>
+          </div>
+          <div class="conn-col">
+            <div class="conn-dir">↑ Data returns</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#fb923c"></div>Top-k document chunks</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#fb923c"></div>Competitor pricing &amp; features</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#fb923c"></div>Conversation history</div>
+          </div>
+          <div class="conn-col" style="justify-content:center;align-self:center">
+            <span class="conn-proto">SQLAlchemy</span>
+            <span class="conn-proto" style="margin-top:4px">ChromaDB SDK</span>
+          </div>
+        </div>
+        <div class="conn-line" style="--c1:#92400e;--c2:#2d6a4f"></div>
+        <div class="conn-arrow">▼</div>
+      </div>
+
+      <!-- 4. DATA -->
+      <div class="map-node mn-data">
+        <div class="mn-header">
+          <div class="mn-icon" style="background:#3a2a1a">🗄️</div>
+          <div>
+            <div class="mn-name" style="color:#fb923c">Data Layer</div>
+            <div class="mn-sub">Persists everything — files, vectors, conversations, snapshots</div>
+          </div>
+        </div>
+        <div class="mn-tags">
+          <span class="mn-tag">PostgreSQL 16 · :5432</span>
+          <span class="mn-tag">ChromaDB (vectors)</span>
+          <span class="mn-tag">BM25 Index (in-memory)</span>
+          <span class="mn-tag">File Storage /uploads</span>
+        </div>
+      </div>
+
+      <!-- CONNECTOR 4→5 -->
+      <div class="connector">
+        <div class="conn-line" style="--c1:#92400e;--c2:#991b1b"></div>
+        <div class="conn-card">
+          <div class="conn-col">
+            <div class="conn-dir">↓ Background jobs enqueue</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#fb923c"></div>Document ingest task (after upload)</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#fb923c"></div>Competitor scrape task (on-demand / weekly)</div>
+          </div>
+          <div class="conn-col">
+            <div class="conn-dir">↑ Workers write back</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#f87171"></div>Update document status → ready / failed</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#f87171"></div>Save competitor snapshot to Postgres</div>
+            <div class="conn-item"><div class="conn-dot" style="background:#f87171"></div>Push embeddings to ChromaDB</div>
+          </div>
+          <div class="conn-col" style="justify-content:center;align-self:center">
+            <span class="conn-proto">Redis (ARQ)</span>
+            <span class="conn-proto" style="margin-top:4px">Job queue</span>
+          </div>
+        </div>
+        <div class="conn-line" style="--c1:#991b1b;--c2:#92400e"></div>
+        <div class="conn-arrow">▼</div>
+      </div>
+
+      <!-- 5. INFRA -->
+      <div class="map-node mn-infra">
+        <div class="mn-header">
+          <div class="mn-icon" style="background:#3a1a1a">⚙️</div>
+          <div>
+            <div class="mn-name" style="color:#f87171">Infrastructure &amp; Workers</div>
+            <div class="mn-sub">Runs background jobs, schedules scraping, hosts containers</div>
+          </div>
+        </div>
+        <div class="mn-tags">
+          <span class="mn-tag">Redis :6379</span>
+          <span class="mn-tag">ARQ Worker (4 concurrent)</span>
+          <span class="mn-tag">Playwright / Chromium</span>
+          <span class="mn-tag">Cron (weekly re-scrape)</span>
+          <span class="mn-tag">Docker Compose</span>
+        </div>
+      </div>
+
+    </div><!-- /map -->
+  </div><!-- /map-section -->
+
+  <!-- ══════════════════════════════════
+       REQUEST TRAVEL SIMULATOR
+  ══════════════════════════════════ -->
+  <div class="sim-section">
+    <div class="map-title">Request Journey Simulator</div>
+    <p class="sim-hint">Pick a scenario to watch the request travel through each layer</p>
+
+    <div class="sim-buttons">
+      <button class="sim-btn" data-scenario="chat" style="--bc:#60a5fa">💬 Chat Query</button>
+      <button class="sim-btn" data-scenario="upload" style="--bc:#c084fc">📄 Document Upload</button>
+      <button class="sim-btn" data-scenario="scrape" style="--bc:#f87171">🌐 Competitor Scrape</button>
+      <button class="sim-btn" data-scenario="competitive" style="--bc:#22d3ee">⚔️ Competitive Analysis</button>
+    </div>
+
+    <!-- The visual track -->
+    <div class="sim-track">
+
+      <div class="sim-node" id="sn-browser">
+        <div class="sim-icon">🖥️</div>
+        <div class="sim-node-name">Browser</div>
+        <div class="sim-node-action" id="sa-browser"></div>
+      </div>
+
+      <div class="sim-conn" id="sc-1">
+        <div class="sim-conn-line"><div class="sim-packet" id="sp-1"></div></div>
+        <div class="sim-conn-proto" id="sp-proto-1"></div>
+      </div>
+
+      <div class="sim-node" id="sn-api">
+        <div class="sim-icon">⚡</div>
+        <div class="sim-node-name">FastAPI</div>
+        <div class="sim-node-action" id="sa-api"></div>
+      </div>
+
+      <div class="sim-conn" id="sc-2">
+        <div class="sim-conn-line"><div class="sim-packet" id="sp-2"></div></div>
+        <div class="sim-conn-proto" id="sp-proto-2"></div>
+      </div>
+
+      <div class="sim-node" id="sn-ai">
+        <div class="sim-icon">🤖</div>
+        <div class="sim-node-name">AI Layer</div>
+        <div class="sim-node-action" id="sa-ai"></div>
+      </div>
+
+      <div class="sim-conn" id="sc-3">
+        <div class="sim-conn-line"><div class="sim-packet" id="sp-3"></div></div>
+        <div class="sim-conn-proto" id="sp-proto-3"></div>
+      </div>
+
+      <div class="sim-node" id="sn-data">
+        <div class="sim-icon">🗄️</div>
+        <div class="sim-node-name">Data</div>
+        <div class="sim-node-action" id="sa-data"></div>
+      </div>
+
+      <div class="sim-conn" id="sc-4">
+        <div class="sim-conn-line"><div class="sim-packet" id="sp-4"></div></div>
+        <div class="sim-conn-proto" id="sp-proto-4"></div>
+      </div>
+
+      <div class="sim-node" id="sn-infra">
+        <div class="sim-icon">⚙️</div>
+        <div class="sim-node-name">Workers</div>
+        <div class="sim-node-action" id="sa-infra"></div>
+      </div>
+
+    </div><!-- /sim-track -->
+
+    <!-- Step log -->
+    <div class="sim-log" id="sim-log">
+      <div class="sim-log-placeholder">↑ Select a scenario above to see the request journey</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       DETAIL CARDS
+  ══════════════════════════════════ -->
+  <div class="layers-section">
+    <div class="section-title">Layer Details</div>
+
+    <div class="layer layer-client">
+      <div class="layer-label">Client — Browser</div>
+      <div class="boxes">
+        <div class="box blue"><div class="box-title">React SPA</div><div class="box-detail">TypeScript · Vite · React Router</div><span class="tag">localhost:3000</span></div>
+        <div class="box blue"><div class="box-title">Chat Page</div><div class="box-detail">SSE streaming · source citations · conversation history</div></div>
+        <div class="box blue"><div class="box-title">Documents Page</div><div class="box-detail">Drag-and-drop upload · ingestion status polling</div></div>
+        <div class="box blue"><div class="box-title">Competitive Page</div><div class="box-detail">Feature matrix · pricing cards · AI comparison</div></div>
+        <div class="box blue"><div class="box-title">Products Page</div><div class="box-detail">Product definitions · linked documents</div></div>
+      </div>
+    </div>
+
+    <div class="layer layer-api">
+      <div class="layer-label">Backend — FastAPI (Python 3.12)</div>
+      <div class="boxes">
+        <div class="box purple"><div class="box-title">Auth API</div><div class="box-detail">Register · Login · JWT · OAuth2</div><span class="tag">/auth</span></div>
+        <div class="box purple"><div class="box-title">Documents API</div><div class="box-detail">Upload · list · delete · status</div><span class="tag">/documents</span></div>
+        <div class="box purple"><div class="box-title">Chat API</div><div class="box-detail">Conversations · messages · SSE</div><span class="tag">/chat</span></div>
+        <div class="box purple"><div class="box-title">Competitors API</div><div class="box-detail">Add · scrape · snapshots</div><span class="tag">/competitors</span></div>
+        <div class="box purple"><div class="box-title">Competitive API</div><div class="box-detail">AI analysis · streaming comparison</div><span class="tag">/competitive</span></div>
+        <div class="box purple"><div class="box-title">Products API</div><div class="box-detail">CRUD · feature tags · document links</div><span class="tag">/products</span></div>
+      </div>
+    </div>
+
+    <div class="layer layer-ai">
+      <div class="layer-label">AI Layer — Agents &amp; Retrieval</div>
+      <div class="boxes">
+        <div class="box green"><div class="box-title">RAG Agent</div><div class="box-detail">Retrieves chunks → builds context → streams via Claude Sonnet</div></div>
+        <div class="box green"><div class="box-title">Competitive Agent</div><div class="box-detail">Merges RAG + competitor data → streams analysis</div></div>
+        <div class="box green"><div class="box-title">Hybrid Retrieval</div><div class="box-detail">BM25 keyword + semantic vector search, merged &amp; re-ranked</div></div>
+        <div class="box cyan"><div class="box-title">Claude Sonnet</div><div class="box-detail">Q&amp;A · competitive analysis · streaming</div><span class="tag">claude-sonnet-4-6</span></div>
+        <div class="box cyan"><div class="box-title">Claude Haiku</div><div class="box-detail">Competitor normalisation · structured extraction</div><span class="tag">claude-haiku-4-5</span></div>
+        <div class="box cyan"><div class="box-title">Embeddings</div><div class="box-detail">all-MiniLM-L6-v2 via sentence-transformers</div></div>
+      </div>
+    </div>
+
+    <div class="layer layer-data">
+      <div class="layer-label">Data Layer</div>
+      <div class="boxes">
+        <div class="box orange"><div class="box-title">PostgreSQL 16</div><div class="box-detail">Users · Docs · Conversations · Messages · Products · Competitors · Snapshots</div><span class="tag">:5432</span></div>
+        <div class="box orange"><div class="box-title">ChromaDB</div><div class="box-detail">Document chunk vectors for semantic search</div><span class="tag">embedded</span></div>
+        <div class="box orange"><div class="box-title">BM25 Index</div><div class="box-detail">In-memory full-text index, rebuilt on document changes</div></div>
+        <div class="box orange"><div class="box-title">File Storage</div><div class="box-detail">Raw uploaded files on /app/uploads Docker volume</div></div>
+      </div>
+    </div>
+
+    <div class="layer layer-infra">
+      <div class="layer-label">Infrastructure &amp; Workers</div>
+      <div class="boxes">
+        <div class="box red"><div class="box-title">Redis</div><div class="box-detail">ARQ job queue broker · task state</div><span class="tag">:6379</span></div>
+        <div class="box red"><div class="box-title">ARQ Worker</div><div class="box-detail">4 concurrent workers · 10-min timeout</div></div>
+        <div class="box red"><div class="box-title">Cron</div><div class="box-detail">Weekly automated competitor re-scrape</div></div>
+        <div class="box red"><div class="box-title">Playwright</div><div class="box-detail">Headless Chromium · 20 pages / 3 levels deep</div></div>
+        <div class="box gray"><div class="box-title">Docker Compose</div><div class="box-detail">5 services: postgres · redis · backend · worker · frontend</div></div>
+        <div class="box gray"><div class="box-title">Rate Limiter</div><div class="box-detail">SlowAPI · per-IP limits</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       PIPELINES
+  ══════════════════════════════════ -->
+  <div class="pipeline-section">
+    <div class="section-title">Data Pipelines</div>
+
+    <div class="pipeline">
+      <div class="pipeline-label">Document Ingest</div>
+      <div class="step step-blue">Upload File</div><div class="arrow">→</div>
+      <div class="step step-blue">Extract Text</div><div class="arrow">→</div>
+      <div class="step step-purple">Chunk + Overlap</div><div class="arrow">→</div>
+      <div class="step step-cyan">Embed (MiniLM)</div><div class="arrow">→</div>
+      <div class="step step-orange">Store ChromaDB</div><div class="arrow">→</div>
+      <div class="step step-orange">Rebuild BM25</div><div class="arrow">→</div>
+      <div class="step step-green">Status: Ready</div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-label">Competitor Scrape</div>
+      <div class="step step-blue">Add URL</div><div class="arrow">→</div>
+      <div class="step step-red">Crawl (Playwright)</div><div class="arrow">→</div>
+      <div class="step step-purple">Parse HTML</div><div class="arrow">→</div>
+      <div class="step step-cyan">Normalise (Haiku)</div><div class="arrow">→</div>
+      <div class="step step-orange">Save Snapshot</div><div class="arrow">→</div>
+      <div class="step step-green">Status: Ready</div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-label">RAG Query</div>
+      <div class="step step-blue">User Question</div><div class="arrow">→</div>
+      <div class="step step-cyan">Embed Query</div><div class="arrow">→</div>
+      <div class="step step-green">Hybrid Retrieve</div><div class="arrow">→</div>
+      <div class="step step-purple">Build Context</div><div class="arrow">→</div>
+      <div class="step step-cyan">Claude Sonnet</div><div class="arrow">→</div>
+      <div class="step step-blue">Stream Answer</div>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipeline-label">Competitive AI</div>
+      <div class="step step-blue">Compare Query</div><div class="arrow">→</div>
+      <div class="step step-green">RAG Context</div><div class="arrow">→</div>
+      <div class="step step-orange">Competitor Data</div><div class="arrow">→</div>
+      <div class="step step-purple">Merge Context</div><div class="arrow">→</div>
+      <div class="step step-cyan">Claude Sonnet</div><div class="arrow">→</div>
+      <div class="step step-blue">Stream Analysis</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       SEQUENCE DIAGRAM
+  ══════════════════════════════════ -->
+  <div class="seq-section">
+    <div class="section-title">Sequence Diagram</div>
+
+    <div class="seq-tabs">
+      <button class="seq-tab active" data-seq="chat">💬 Chat Query</button>
+      <button class="seq-tab" data-seq="upload">📄 Document Upload</button>
+      <button class="seq-tab" data-seq="scrape">🌐 Competitor Scrape</button>
+      <button class="seq-tab" data-seq="competitive">⚔️ Competitive Analysis</button>
+    </div>
+
+    <div class="seq-diagram" id="seq-diagram">
+      <!-- Actors -->
+      <div class="seq-actors" id="seq-actors"></div>
+      <!-- Lifelines + messages -->
+      <div class="seq-body" id="seq-body"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       LOW LEVEL DESIGN
+  ══════════════════════════════════ -->
+  <div class="lld-section">
+    <div class="section-title">Low Level Design</div>
+
+    <!-- DB Schema -->
+    <div class="lld-block">
+      <div class="lld-block-title">📦 Database Schema (PostgreSQL)</div>
+      <div class="lld-tables">
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#60a5fa">users</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row"><span class="lld-col">email</span><span class="lld-type">VARCHAR UNIQUE</span></div>
+          <div class="lld-row"><span class="lld-col">name</span><span class="lld-type">VARCHAR</span></div>
+          <div class="lld-row"><span class="lld-col">hashed_password</span><span class="lld-type">VARCHAR</span></div>
+          <div class="lld-row"><span class="lld-col">role</span><span class="lld-type">ENUM(admin,user)</span></div>
+          <div class="lld-row"><span class="lld-col">created_at</span><span class="lld-type">TIMESTAMP</span></div>
+        </div>
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#c084fc">documents</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row lld-fk"><span class="lld-col">user_id</span><span class="lld-type">FK → users</span></div>
+          <div class="lld-row"><span class="lld-col">filename</span><span class="lld-type">VARCHAR(512)</span></div>
+          <div class="lld-row"><span class="lld-col">file_type</span><span class="lld-type">ENUM(pdf,docx…)</span></div>
+          <div class="lld-row"><span class="lld-col">status</span><span class="lld-type">ENUM(pending…ready)</span></div>
+          <div class="lld-row"><span class="lld-col">chunk_count</span><span class="lld-type">INTEGER</span></div>
+          <div class="lld-row"><span class="lld-col">file_size</span><span class="lld-type">BIGINT</span></div>
+          <div class="lld-row"><span class="lld-col">error_message</span><span class="lld-type">TEXT</span></div>
+        </div>
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#4ade80">conversations</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row lld-fk"><span class="lld-col">user_id</span><span class="lld-type">FK → users</span></div>
+          <div class="lld-row"><span class="lld-col">title</span><span class="lld-type">VARCHAR(255)</span></div>
+          <div class="lld-row"><span class="lld-col">pinned</span><span class="lld-type">BOOLEAN</span></div>
+          <div class="lld-row"><span class="lld-col">message_count</span><span class="lld-type">INTEGER</span></div>
+          <div class="lld-row"><span class="lld-col">created_at</span><span class="lld-type">TIMESTAMP</span></div>
+        </div>
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#22d3ee">messages</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row lld-fk"><span class="lld-col">conversation_id</span><span class="lld-type">FK → conversations</span></div>
+          <div class="lld-row"><span class="lld-col">role</span><span class="lld-type">ENUM(user,assistant)</span></div>
+          <div class="lld-row"><span class="lld-col">content</span><span class="lld-type">TEXT</span></div>
+          <div class="lld-row"><span class="lld-col">sources</span><span class="lld-type">JSONB</span></div>
+          <div class="lld-row"><span class="lld-col">token_count</span><span class="lld-type">INTEGER</span></div>
+        </div>
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#fb923c">competitors</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row lld-fk"><span class="lld-col">user_id</span><span class="lld-type">FK → users</span></div>
+          <div class="lld-row"><span class="lld-col">name</span><span class="lld-type">VARCHAR</span></div>
+          <div class="lld-row"><span class="lld-col">website_url</span><span class="lld-type">VARCHAR</span></div>
+          <div class="lld-row"><span class="lld-col">scrape_status</span><span class="lld-type">ENUM(pending…ready)</span></div>
+          <div class="lld-row"><span class="lld-col">scrape_interval_days</span><span class="lld-type">INTEGER</span></div>
+          <div class="lld-row"><span class="lld-col">last_scraped_at</span><span class="lld-type">TIMESTAMP</span></div>
+        </div>
+
+        <div class="lld-table">
+          <div class="lld-table-name" style="color:#f87171">competitor_snapshots</div>
+          <div class="lld-row lld-pk"><span class="lld-col">id</span><span class="lld-type">VARCHAR(36) PK</span></div>
+          <div class="lld-row lld-fk"><span class="lld-col">competitor_id</span><span class="lld-type">FK → competitors</span></div>
+          <div class="lld-row"><span class="lld-col">pricing_tiers</span><span class="lld-type">JSONB</span></div>
+          <div class="lld-row"><span class="lld-col">features</span><span class="lld-type">JSONB</span></div>
+          <div class="lld-row"><span class="lld-col">integrations</span><span class="lld-type">JSONB</span></div>
+          <div class="lld-row"><span class="lld-col">confidence</span><span class="lld-type">ENUM(high,med,low)</span></div>
+          <div class="lld-row"><span class="lld-col">pages_crawled</span><span class="lld-type">INTEGER</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- API Endpoints -->
+    <div class="lld-block">
+      <div class="lld-block-title">🔌 API Endpoints</div>
+      <table class="lld-api">
+        <thead>
+          <tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="method post">POST</span></td><td>/auth/register</td><td>—</td><td>Create new user account</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/auth/login</td><td>—</td><td>Login, returns JWT token</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/auth/me</td><td>JWT</td><td>Get current user profile</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/documents/upload</td><td>JWT</td><td>Upload file, triggers ingest job</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/documents</td><td>JWT</td><td>List all user documents + status</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/documents/{id}</td><td>JWT</td><td>Get document status + metadata</td></tr>
+          <tr><td><span class="method del">DELETE</span></td><td>/documents/{id}</td><td>JWT</td><td>Delete document + vectors</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/chat/conversations</td><td>JWT</td><td>Create new conversation</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/chat/conversations</td><td>JWT</td><td>List conversations (pinned first)</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/chat/send</td><td>JWT</td><td>Send message, returns SSE stream</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/competitors</td><td>JWT</td><td>Add competitor URL</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/competitors</td><td>JWT</td><td>List competitors + latest snapshot</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/competitors/{id}/scrape</td><td>JWT</td><td>Trigger manual re-scrape</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/competitive/analyze</td><td>JWT</td><td>Stream competitive analysis (SSE)</td></tr>
+          <tr><td><span class="method post">POST</span></td><td>/products</td><td>JWT</td><td>Create product definition</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/products</td><td>JWT</td><td>List products with linked docs</td></tr>
+          <tr><td><span class="method get">GET</span></td><td>/health</td><td>—</td><td>System health (DB, Redis, Chroma)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Module Map -->
+    <div class="lld-block">
+      <div class="lld-block-title">🧩 Module Dependency Map</div>
+      <div class="lld-modules">
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#60a5fa">frontend/src/</div>
+          <div class="lld-mod">pages/Chat.tsx <span class="lld-dep">→ api/chat, hooks/useSSE</span></div>
+          <div class="lld-mod">pages/Documents.tsx <span class="lld-dep">→ api/documents, components/ui</span></div>
+          <div class="lld-mod">pages/Competitive.tsx <span class="lld-dep">→ api/competitive, api/competitors</span></div>
+          <div class="lld-mod">pages/Products.tsx <span class="lld-dep">→ api/products</span></div>
+          <div class="lld-mod">context/AuthContext.tsx <span class="lld-dep">→ api/auth (JWT storage)</span></div>
+        </div>
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#c084fc">backend/api/</div>
+          <div class="lld-mod">auth.py <span class="lld-dep">→ db/models, passlib, jose</span></div>
+          <div class="lld-mod">documents.py <span class="lld-dep">→ db/models, workers/tasks, arq</span></div>
+          <div class="lld-mod">chat.py <span class="lld-dep">→ agents/rag_agent, db/models</span></div>
+          <div class="lld-mod">competitors.py <span class="lld-dep">→ db/models, workers/tasks</span></div>
+          <div class="lld-mod">competitive.py <span class="lld-dep">→ agents/competitive_agent, db/models</span></div>
+          <div class="lld-mod">products.py <span class="lld-dep">→ db/models</span></div>
+        </div>
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#4ade80">backend/agents/</div>
+          <div class="lld-mod">rag_agent.py <span class="lld-dep">→ retrieval/hybrid, anthropic SDK</span></div>
+          <div class="lld-mod">competitive_agent.py <span class="lld-dep">→ retrieval/hybrid, db/models, anthropic SDK</span></div>
+        </div>
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#22d3ee">backend/retrieval/</div>
+          <div class="lld-mod">hybrid.py <span class="lld-dep">→ bm25.py, chromadb, sentence-transformers</span></div>
+          <div class="lld-mod">bm25.py <span class="lld-dep">→ rank_bm25, db/models</span></div>
+        </div>
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#f87171">backend/workers/</div>
+          <div class="lld-mod">tasks.py <span class="lld-dep">→ pipelines/scraping, retrieval/hybrid, db/models</span></div>
+          <div class="lld-mod">worker.py <span class="lld-dep">→ tasks.py, arq, redis</span></div>
+        </div>
+
+        <div class="lld-mod-group">
+          <div class="lld-mod-group-title" style="color:#fb923c">backend/pipelines/scraping/</div>
+          <div class="lld-mod">crawler.py <span class="lld-dep">→ playwright, robots.txt parser</span></div>
+          <div class="lld-mod">extractor.py <span class="lld-dep">→ beautifulsoup4, lxml</span></div>
+          <div class="lld-mod">normalizer.py <span class="lld-dep">→ anthropic SDK (Haiku)</span></div>
+          <div class="lld-mod">tasks.py <span class="lld-dep">→ crawler, extractor, normalizer, db/models</span></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa;box-shadow:0 0 5px #60a5fa"></div>Frontend</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c084fc;box-shadow:0 0 5px #c084fc;animation-delay:.3s"></div>API</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80;box-shadow:0 0 5px #4ade80;animation-delay:.6s"></div>AI Agents</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22d3ee;box-shadow:0 0 5px #22d3ee;animation-delay:.9s"></div>Claude / ML</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fb923c;box-shadow:0 0 5px #fb923c;animation-delay:1.2s"></div>Databases</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f87171;box-shadow:0 0 5px #f87171;animation-delay:1.5s"></div>Workers</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;box-shadow:0 0 5px #94a3b8;animation-delay:1.8s"></div>Platform</div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+  /* ── Particle background ── */
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles;
+  const COLORS = ['#60a5fa','#c084fc','#4ade80','#22d3ee','#fb923c'];
+
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+
+  function initParticles() {
+    particles = Array.from({ length: 55 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.35, vy: (Math.random() - 0.5) * 0.35,
+      r: Math.random() * 1.8 + 0.8,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      alpha: Math.random() * 0.4 + 0.15,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(96,165,250,${0.1 * (1 - d/120)})`;
+          ctx.lineWidth = 0.7;
+          ctx.stroke();
+        }
+      }
+    }
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize(); initParticles(); draw();
+  window.addEventListener('resize', () => { resize(); initParticles(); });
+
+  /* ══════════════════════════════════
+     SEQUENCE DIAGRAM
+  ══════════════════════════════════ */
+  const SEQ_ACTORS = [
+    { id:'browser', label:'Browser',  icon:'🖥️', color:'#60a5fa' },
+    { id:'api',     label:'FastAPI',  icon:'⚡', color:'#c084fc' },
+    { id:'ai',      label:'AI Layer', icon:'🤖', color:'#4ade80' },
+    { id:'data',    label:'Data',     icon:'🗄️', color:'#fb923c' },
+    { id:'infra',   label:'Workers',  icon:'⚙️', color:'#f87171' },
+  ];
+
+  // Each message: { from, to, label, type:'solid'|'dashed', note? }
+  const SEQ_SCENARIOS = {
+    chat: [
+      { from:'browser', to:'api',     label:'POST /chat/send {query}',          type:'solid' },
+      { from:'api',     to:'api',     label:'Validate JWT · auth check',         type:'solid', note:true },
+      { from:'api',     to:'ai',      label:'rag_agent.stream(query, user_id)',  type:'solid' },
+      { from:'ai',      to:'ai',      label:'embed(query) → hybrid_search()',    type:'solid', note:true },
+      { from:'ai',      to:'data',    label:'ChromaDB.query(embedding, top_k=5)',type:'solid' },
+      { from:'data',    to:'ai',      label:'top-5 chunks + metadata',           type:'dashed' },
+      { from:'ai',      to:'ai',      label:'build_prompt(chunks + history)',     type:'solid', note:true },
+      { from:'ai',      to:'data',    label:'SELECT messages WHERE conv_id=…',   type:'solid' },
+      { from:'data',    to:'ai',      label:'conversation history rows',          type:'dashed' },
+      { from:'ai',      to:'api',     label:'stream tokens (Anthropic SDK)',      type:'dashed' },
+      { from:'api',     to:'data',    label:'INSERT message (role=assistant)',    type:'solid' },
+      { from:'api',     to:'browser', label:'SSE: text/event-stream tokens',     type:'dashed' },
+    ],
+    upload: [
+      { from:'browser', to:'api',    label:'POST /documents/upload (multipart)', type:'solid' },
+      { from:'api',     to:'api',    label:'Validate JWT · check file type/size', type:'solid', note:true },
+      { from:'api',     to:'data',   label:'Write file → /uploads/report.pdf',   type:'solid' },
+      { from:'api',     to:'data',   label:'INSERT documents (status=pending)',   type:'solid' },
+      { from:'data',    to:'api',    label:'doc_id: "abc-123"',                  type:'dashed' },
+      { from:'api',     to:'browser',label:'202 Accepted {doc_id}',              type:'dashed' },
+      { from:'api',     to:'infra',  label:'arq.enqueue("ingest_document")',      type:'solid' },
+      { from:'infra',   to:'infra',  label:'extract text · chunk · embed',        type:'solid', note:true },
+      { from:'infra',   to:'data',   label:'ChromaDB.upsert(47 embeddings)',      type:'solid' },
+      { from:'infra',   to:'data',   label:'UPDATE documents SET status=ready',   type:'solid' },
+      { from:'browser', to:'api',    label:'GET /documents/abc-123 (polling)',     type:'solid' },
+      { from:'data',    to:'browser',label:'200 {status:"ready", chunks:47}',     type:'dashed' },
+    ],
+    scrape: [
+      { from:'browser', to:'api',   label:'POST /competitors {name, url}',        type:'solid' },
+      { from:'api',     to:'data',  label:'INSERT competitors (status=pending)',   type:'solid' },
+      { from:'api',     to:'infra', label:'arq.enqueue("scrape_competitor")',      type:'solid' },
+      { from:'api',     to:'browser',label:'202 Accepted {competitor_id}',        type:'dashed' },
+      { from:'infra',   to:'infra', label:'Playwright.launch() → crawl 20 pages', type:'solid', note:true },
+      { from:'infra',   to:'infra', label:'Parse HTML: pricing / features',        type:'solid', note:true },
+      { from:'infra',   to:'ai',    label:'Haiku: normalise(raw_text)',            type:'solid' },
+      { from:'ai',      to:'infra', label:'{pricing_tiers, features, confidence}', type:'dashed' },
+      { from:'infra',   to:'data',  label:'INSERT competitor_snapshots',           type:'solid' },
+      { from:'infra',   to:'data',  label:'UPDATE competitors SET status=ready',   type:'solid' },
+      { from:'browser', to:'api',   label:'GET /competitors/{id} (polling)',        type:'solid' },
+      { from:'data',    to:'browser',label:'200 {status:"ready", snapshot:{…}}',   type:'dashed' },
+    ],
+    competitive: [
+      { from:'browser', to:'api',    label:'POST /competitive/analyze {query, competitor_ids}', type:'solid' },
+      { from:'api',     to:'api',    label:'Validate JWT',                                       type:'solid', note:true },
+      { from:'api',     to:'ai',     label:'competitive_agent.stream(query, …)',                 type:'solid' },
+      { from:'ai',      to:'ai',     label:'embed(query) → hybrid_search()',                     type:'solid', note:true },
+      { from:'ai',      to:'data',   label:'ChromaDB.query(embedding)',                          type:'solid' },
+      { from:'data',    to:'ai',     label:'internal doc chunks',                                type:'dashed' },
+      { from:'ai',      to:'data',   label:'SELECT snapshots WHERE competitor_id IN (…)',        type:'solid' },
+      { from:'data',    to:'ai',     label:'competitor pricing + features JSON',                 type:'dashed' },
+      { from:'ai',      to:'ai',     label:'build_prompt(internal_ctx + competitor_ctx)',        type:'solid', note:true },
+      { from:'ai',      to:'api',    label:'stream analysis tokens (Claude Sonnet)',              type:'dashed' },
+      { from:'api',     to:'browser',label:'SSE: text/event-stream (markdown report)',           type:'dashed' },
+    ],
+  };
+
+  function buildSeqDiagram(key) {
+    const messages = SEQ_SCENARIOS[key];
+    const actorMap  = {};
+    SEQ_ACTORS.forEach((a, i) => actorMap[a.id] = i);
+    const n = SEQ_ACTORS.length;
+
+    // Actors header
+    const actorsEl = document.getElementById('seq-actors');
+    actorsEl.innerHTML = '<div class="seq-actor-spacer"></div>';
+    SEQ_ACTORS.forEach(a => {
+      actorsEl.innerHTML += `
+        <div class="seq-actor" style="color:${a.color}">
+          <span class="seq-actor-icon">${a.icon}</span>${a.label}
+          <div class="seq-actor-line"></div>
+        </div>`;
+    });
+
+    // Body rows
+    const bodyEl = document.getElementById('seq-body');
+    bodyEl.innerHTML = '';
+
+    messages.forEach((msg, idx) => {
+      const fi = actorMap[msg.from];
+      const ti = actorMap[msg.to];
+      const isSelf = fi === ti;
+      const color = SEQ_ACTORS[fi].color;
+      const toColor = SEQ_ACTORS[ti].color;
+      const delay = idx * 120;
+
+      const row = document.createElement('div');
+      row.className = 'seq-row';
+      row.style.animationDelay = delay + 'ms';
+
+      // Step label
+      const stepNum = document.createElement('div');
+      stepNum.className = 'seq-step-num';
+      stepNum.textContent = (idx + 1).toString().padStart(2, '0');
+      row.appendChild(stepNum);
+
+      // Lifelines container
+      const ll = document.createElement('div');
+      ll.className = 'seq-lifelines';
+
+      // Draw vertical lifelines
+      for (let i = 0; i < n; i++) {
+        const vl = document.createElement('div');
+        vl.className = 'seq-vline';
+        vl.style.left = `${(i / (n - 1)) * 100}%`;
+        vl.style.borderLeft = `1px dashed rgba(255,255,255,0.05)`;
+        ll.appendChild(vl);
+      }
+
+      if (isSelf || msg.note) {
+        // Self-note box
+        const pct = (fi / (n - 1)) * 100;
+        const note = document.createElement('div');
+        note.className = 'seq-note';
+        note.style.left = `calc(${pct}% + 14px)`;
+        note.style.borderColor = color + '44';
+        note.style.color = color;
+        note.textContent = msg.label;
+        ll.appendChild(note);
+      } else {
+        const fromPct = (fi / (n - 1)) * 100;
+        const toPct   = (ti / (n - 1)) * 100;
+        const left  = Math.min(fromPct, toPct);
+        const right = Math.max(fromPct, toPct);
+        const width = right - left;
+        const goRight = ti > fi;
+
+        // Activation bar on sender
+        const act = document.createElement('div');
+        act.className = 'seq-activation';
+        act.style.left   = `calc(${fromPct}% - 5px)`;
+        act.style.top    = '10px';
+        act.style.height = '32px';
+        act.style.background = color + '44';
+        ll.appendChild(act);
+
+        // Message line + arrowhead
+        const msgEl = document.createElement('div');
+        msgEl.className = 'seq-msg';
+        msgEl.style.left  = `${left}%`;
+        msgEl.style.width = `${width}%`;
+        msgEl.style.top   = '50%';
+        msgEl.style.transform = 'translateY(-50%)';
+
+        const arrowColor = msg.type === 'dashed' ? toColor : color;
+
+        if (goRight) {
+          const line = document.createElement('div');
+          line.className = 'seq-msg-line' + (msg.type === 'dashed' ? ' dashed' : '');
+          line.style.background = arrowColor;
+          line.style.color = arrowColor;
+          line.style.animationDelay = delay + 'ms';
+          const head = document.createElement('div');
+          head.className = 'seq-arrowhead';
+          head.style.color = arrowColor;
+          head.textContent = '▶';
+          msgEl.appendChild(line);
+          msgEl.appendChild(head);
+        } else {
+          const head = document.createElement('div');
+          head.className = 'seq-arrowhead';
+          head.style.color = arrowColor;
+          head.textContent = '◀';
+          const line = document.createElement('div');
+          line.className = 'seq-msg-line' + (msg.type === 'dashed' ? ' dashed' : '');
+          line.style.background = arrowColor;
+          line.style.color = arrowColor;
+          line.style.animationDelay = delay + 'ms';
+          msgEl.appendChild(head);
+          msgEl.appendChild(line);
+        }
+
+        // Label above arrow
+        const label = document.createElement('div');
+        label.className = 'seq-label';
+        label.style.color = arrowColor;
+        label.textContent = msg.label;
+        msgEl.appendChild(label);
+
+        ll.appendChild(msgEl);
+      }
+
+      row.appendChild(ll);
+      bodyEl.appendChild(row);
+    });
+  }
+
+  // Init
+  buildSeqDiagram('chat');
+  document.querySelectorAll('.seq-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.seq-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      buildSeqDiagram(tab.dataset.seq);
+    });
+  });
+
+  /* ══════════════════════════════════
+     REQUEST TRAVEL SIMULATOR
+  ══════════════════════════════════ */
+  const SCENARIOS = {
+    chat: {
+      label: 'Chat Query',
+      color: '#60a5fa',
+      steps: [
+        { node: 'browser', proto: '',        dir: 'down', action: 'User types question',          log: '→ POST /chat/send  {query: "What are our pricing tiers?"}' },
+        { node: 'api',     proto: 'HTTP POST', dir: 'down', action: 'Auth + route to RAG agent',   log: '→ Validates JWT · dispatches to RAG agent' },
+        { node: 'ai',      proto: 'async',    dir: 'down', action: 'Embed query · hybrid search',  log: '→ Embed query → ChromaDB top-k · BM25 merge · build prompt' },
+        { node: 'data',    proto: 'ChromaDB', dir: 'up',   action: 'Return top 5 doc chunks',      log: '← chunks: [pricing_guide.pdf §3, deck.pdf §7 …]' },
+        { node: 'ai',      proto: 'Anthropic', dir: 'up',  action: 'Stream tokens from Claude',    log: '← Claude Sonnet streaming · 312 tokens · 3 citations' },
+        { node: 'api',     proto: 'SSE',      dir: 'up',   action: 'Forward stream to browser',    log: '← text/event-stream  data: {"token": "Our pricing …"}' },
+        { node: 'browser', proto: '',         dir: 'up',   action: 'Render streaming answer ✓',    log: '← Answer rendered with source badges' },
+      ]
+    },
+    upload: {
+      label: 'Document Upload',
+      color: '#c084fc',
+      steps: [
+        { node: 'browser', proto: '',          dir: 'down', action: 'User drops a PDF',            log: '→ POST /documents/upload  file: report.pdf (2.3MB)' },
+        { node: 'api',     proto: 'HTTP POST', dir: 'down', action: 'Save file · create DB record', log: '→ Write /uploads/report.pdf · INSERT documents status=pending' },
+        { node: 'data',    proto: 'Postgres',  dir: 'up',   action: 'Document row created',         log: '← doc_id: "abc-123"  status: pending' },
+        { node: 'api',     proto: 'Redis ARQ', dir: 'down', action: 'Enqueue ingest job',           log: '→ arq.enqueue("ingest_document", doc_id="abc-123")' },
+        { node: 'infra',   proto: 'Worker',    dir: 'down', action: 'Extract → chunk → embed',      log: '→ pdfplumber extract · 47 chunks · MiniLM embed' },
+        { node: 'data',    proto: 'ChromaDB',  dir: 'up',   action: 'Store vectors + update status', log: '← ChromaDB upsert 47 vectors · UPDATE status=ready' },
+        { node: 'browser', proto: 'polling',   dir: 'up',   action: 'Status turns green ✓',         log: '← GET /documents/abc-123  {status: "ready", chunks: 47}' },
+      ]
+    },
+    scrape: {
+      label: 'Competitor Scrape',
+      color: '#f87171',
+      steps: [
+        { node: 'browser', proto: '',           dir: 'down', action: 'User adds competitor URL',   log: '→ POST /competitors  {name:"Acme", url:"acme.com"}' },
+        { node: 'api',     proto: 'HTTP POST',  dir: 'down', action: 'Save competitor · enqueue',  log: '→ INSERT competitors · arq.enqueue("scrape_competitor")' },
+        { node: 'infra',   proto: 'Playwright', dir: 'down', action: 'Crawl up to 20 pages',       log: '→ Headless Chromium crawl · pricing + features priority' },
+        { node: 'infra',   proto: 'parse',      dir: 'down', action: 'Extract pricing / features', log: '→ HTML parse · tables / headings / lists extracted' },
+        { node: 'ai',      proto: 'Haiku API',  dir: 'down', action: 'Normalise with Claude Haiku', log: '→ Claude Haiku → structured JSON {pricing, features, claims}' },
+        { node: 'data',    proto: 'Postgres',   dir: 'up',   action: 'Save snapshot · confidence', log: '← INSERT competitor_snapshots  confidence: high' },
+        { node: 'browser', proto: 'polling',    dir: 'up',   action: 'Competitor card updates ✓',  log: '← GET /competitors/xyz  {status: "ready", snapshot: {…}}' },
+      ]
+    },
+    competitive: {
+      label: 'Competitive Analysis',
+      color: '#22d3ee',
+      steps: [
+        { node: 'browser', proto: '',           dir: 'down', action: 'User asks comparison query', log: '→ POST /competitive/analyze  {query:"vs Acme pricing", competitors:["acme"]}' },
+        { node: 'api',     proto: 'HTTP POST',  dir: 'down', action: 'Route to competitive agent', log: '→ Validates JWT · calls competitive_agent.stream()' },
+        { node: 'ai',      proto: 'async',      dir: 'down', action: 'Hybrid-retrieve internal docs', log: '→ Embed query → ChromaDB + BM25 → top internal chunks' },
+        { node: 'data',    proto: 'Postgres',   dir: 'up',   action: 'Fetch competitor snapshots',  log: '← SELECT snapshots WHERE competitor_id=acme ORDER BY created_at DESC' },
+        { node: 'ai',      proto: 'Anthropic',  dir: 'up',   action: 'Merge context · call Sonnet', log: '→ [Internal Docs] + [Competitor: Acme] → Claude Sonnet stream' },
+        { node: 'api',     proto: 'SSE',        dir: 'up',   action: 'Stream analysis to browser',  log: '← text/event-stream  analysis with [Internal] [Acme] citations' },
+        { node: 'browser', proto: '',           dir: 'up',   action: 'Render comparison report ✓',  log: '← Markdown report · feature matrix · pricing diff rendered' },
+      ]
+    }
+  };
+
+  const nodeIds   = ['browser','api','ai','data','infra'];
+  const connIds   = ['1','2','3','4'];
+  const connProtos = { '1':'HTTP/SSE', '2':'async', '3':'SQL/SDK', '4':'Redis ARQ' };
+  let simRunning  = false;
+
+  function resetSim() {
+    nodeIds.forEach(id => {
+      const el = document.getElementById('sn-' + id);
+      el.classList.remove('active','done');
+      document.getElementById('sa-' + id).textContent = '';
+    });
+    connIds.forEach(i => {
+      const p = document.getElementById('sp-' + i);
+      p.className = 'sim-packet';
+      p.style.left = '-12px';
+      p.style.opacity = '0';
+      p.style.background = '#60a5fa';
+      p.style.boxShadow = '0 0 10px #60a5fa';
+      document.getElementById('sp-proto-' + i).textContent = connProtos[i];
+    });
+    document.getElementById('sim-log').innerHTML = '';
+  }
+
+  function nodeIndex(id) { return nodeIds.indexOf(id); }
+
+  function connBetween(a, b) {
+    const ia = nodeIndex(a), ib = nodeIndex(b);
+    const mn = Math.min(ia, ib);
+    return mn + 1; // connector index
+  }
+
+  function activateNode(id, action, color) {
+    const el = document.getElementById('sn-' + id);
+    el.classList.add('active');
+    el.style.setProperty('--node-color', color);
+    document.getElementById('sa-' + id).textContent = action;
+  }
+
+  function deactivateNode(id) {
+    const el = document.getElementById('sn-' + id);
+    el.classList.remove('active');
+    el.classList.add('done');
+  }
+
+  function animatePacket(connIdx, dir, color) {
+    return new Promise(resolve => {
+      const p = document.getElementById('sp-' + connIdx);
+      p.style.background = color;
+      p.style.boxShadow = '0 0 10px ' + color;
+      p.style.opacity = '0';
+      p.className = 'sim-packet';
+
+      if (dir === 'down') {
+        p.style.left = '-12px';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            p.className = 'sim-packet traveling';
+            p.style.opacity = '1';
+            p.style.left = 'calc(100% + 2px)';
+            setTimeout(() => { p.style.opacity = '0'; resolve(); }, 650);
+          });
+        });
+      } else {
+        p.style.left = 'calc(100% + 2px)';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            p.className = 'sim-packet return-travel';
+            p.style.opacity = '1';
+            p.style.left = '-12px';
+            setTimeout(() => { p.style.opacity = '0'; resolve(); }, 600);
+          });
+        });
+      }
+    });
+  }
+
+  function addLog(dir, layer, msg, color, delay) {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const log = document.getElementById('sim-log');
+        const now = new Date();
+        const ts = `${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+        const arrow = dir === 'down' ? '<span class="log-arrow-down">↓</span>' : '<span class="log-arrow-up">↑</span>';
+        const entry = document.createElement('div');
+        entry.className = 'sim-log-entry';
+        entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-layer" style="color:${color}">${arrow} ${layer}</span><span class="log-msg">${msg}</span>`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+        resolve();
+      }, delay);
+    });
+  }
+
+  async function runScenario(key) {
+    if (simRunning) return;
+    simRunning = true;
+
+    document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-scenario="${key}"]`).classList.add('active');
+
+    const s = SCENARIOS[key];
+    resetSim();
+
+    const nodeLabels = { browser:'Browser', api:'FastAPI', ai:'AI Layer', data:'Data', infra:'Workers' };
+    const nodeColors = { browser:'#60a5fa', api:'#c084fc', ai:'#4ade80', data:'#fb923c', infra:'#f87171' };
+
+    let prevNode = null;
+    let stepDelay = 0;
+
+    for (let i = 0; i < s.steps.length; i++) {
+      const step = s.steps[i];
+      const delay = stepDelay;
+
+      // Move packet between previous node and this node
+      if (prevNode !== null && prevNode !== step.node) {
+        const ci = connBetween(prevNode, step.node);
+        if (ci >= 1 && ci <= 4) {
+          await new Promise(r => setTimeout(r, 300));
+          await animatePacket(ci, step.dir, nodeColors[step.node]);
+        }
+      }
+
+      // Deactivate previous node
+      if (prevNode && prevNode !== step.node) deactivateNode(prevNode);
+
+      // Activate current node
+      activateNode(step.node, step.action, nodeColors[step.node]);
+      await addLog(step.dir, nodeLabels[step.node], step.log, nodeColors[step.node], 0);
+      await new Promise(r => setTimeout(r, 700));
+
+      prevNode = step.node;
+    }
+
+    // Final: deactivate all
+    if (prevNode) deactivateNode(prevNode);
+    simRunning = false;
+  }
+
+  document.querySelectorAll('.sim-btn').forEach(btn => {
+    btn.addEventListener('click', () => runScenario(btn.dataset.scenario));
+  });
+
+  // Set default proto labels
+  connIds.forEach(i => {
+    document.getElementById('sp-proto-' + i).textContent = connProtos[i];
+  });
+
+  /* ── Scroll-triggered entrance ── */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.map-node, .connector, .layer, .pipeline').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(16px)';
+    el.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
+    io.observe(el);
+  });
+</script>
+
+</body>
+</html>
