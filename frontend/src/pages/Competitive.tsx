@@ -1,10 +1,11 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import {
   Plus, Trash2, RefreshCw, Globe, Loader, AlertCircle, CheckCircle,
-  Clock, ChevronDown, ChevronUp, Send, Square
+  Clock, Send, Square, FileText, BookOpen, Zap
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import type { Components } from 'react-markdown'
 import {
   listCompetitors, addCompetitor, triggerScrape, deleteCompetitor,
   getSnapshotHistory, streamCompare,
@@ -15,6 +16,78 @@ import type { Competitor, CompetitorSnapshot } from '../api/competitors'
 import type { Source } from '../types'
 
 type Tab = 'competitors' | 'compare' | 'pricing'
+
+const mdComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4 mt-1 leading-snug">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-base font-bold text-gray-800 mt-6 mb-2 flex items-center gap-2">
+      <span className="w-1 h-4 bg-brand-500 rounded-full inline-block shrink-0" />
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-sm font-semibold text-brand-700 mt-4 mb-1.5">{children}</h3>
+  ),
+  p: ({ children }) => (
+    <p className="text-sm text-gray-700 leading-relaxed mb-3">{children}</p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-gray-900">{children}</strong>
+  ),
+  em: ({ children }) => (
+    <em className="italic text-gray-600">{children}</em>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-4 border-amber-400 bg-amber-50 px-4 py-2.5 my-3 rounded-r-lg text-sm text-amber-800 not-italic">
+      {children}
+    </blockquote>
+  ),
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 shadow-sm">
+      <table className="w-full text-sm border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-gray-50">{children}</thead>
+  ),
+  tbody: ({ children }) => (
+    <tbody className="divide-y divide-gray-100">{children}</tbody>
+  ),
+  tr: ({ children }) => (
+    <tr className="hover:bg-blue-50/30 transition-colors">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200">{children}</th>
+  ),
+  td: ({ children }) => (
+    <td className="px-3 py-2 text-gray-700 text-sm">{children}</td>
+  ),
+  ul: ({ children }) => (
+    <ul className="my-2 space-y-0.5">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-2 space-y-0.5 pl-5 list-decimal text-sm text-gray-700">{children}</ol>
+  ),
+  li: ({ children }) => (
+    <li className="text-sm text-gray-700 flex items-start gap-2 py-0.5">
+      <span className="text-brand-400 shrink-0 mt-[3px] text-[10px] leading-none">▸</span>
+      <span className="flex-1">{children}</span>
+    </li>
+  ),
+  code: ({ className, children }) => {
+    if (className?.includes('language-')) {
+      return (
+        <pre className="bg-gray-900 text-green-400 rounded-lg p-3 text-xs overflow-x-auto my-3 font-mono leading-relaxed">
+          <code>{children}</code>
+        </pre>
+      )
+    }
+    return <code className="bg-gray-100 text-brand-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+  },
+  hr: () => <hr className="border-gray-200 my-5" />,
+}
 
 const STATUS_ICON: Record<string, JSX.Element> = {
   pending: <Clock size={14} className="text-gray-400" />,
@@ -394,22 +467,58 @@ export function Competitive() {
 
             {/* Streaming result */}
             {(compareText || isComparing) && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                {/* Result header */}
+                <div className="border-b border-gray-100 bg-gradient-to-r from-brand-50 to-white px-5 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap size={14} className="text-brand-600" />
+                    <span className="text-xs font-semibold text-brand-700 uppercase tracking-wide">AI Analysis</span>
+                  </div>
+                  <span className="text-xs text-gray-400 italic truncate max-w-xs">{compareQuery}</span>
+                  {isComparing && (
+                    <span className="flex items-center gap-1.5 text-xs text-brand-600 font-medium">
+                      <Loader size={11} className="animate-spin" />
+                      Analyzing…
+                    </span>
+                  )}
+                </div>
+
+                {/* Source citations */}
                 {compareSources.length > 0 && (
-                  <div className="mb-4 flex flex-wrap gap-1.5">
-                    {compareSources.map((src) => (
-                      <span key={src.chroma_id} className="text-xs bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        {src.doc_name} {src.page_number ? `p.${src.page_number}` : ''}
-                      </span>
-                    ))}
+                  <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1">
+                      <BookOpen size={10} /> Internal Sources Used
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {compareSources.map((src, i) => (
+                        <span
+                          key={src.chroma_id}
+                          className="inline-flex items-center gap-1 text-xs bg-white border border-blue-200 text-blue-700 px-2 py-1 rounded-lg shadow-sm"
+                        >
+                          <FileText size={10} className="shrink-0 text-blue-400" />
+                          <span className="font-medium">[{i + 1}]</span>
+                          <span className="text-blue-600 truncate max-w-[140px]">{src.doc_name}</span>
+                          {src.page_number && (
+                            <span className="text-blue-400 font-mono text-[10px]">p.{src.page_number}</span>
+                          )}
+                          {src.section && (
+                            <span className="text-blue-400 truncate max-w-[80px] hidden sm:inline">· {src.section}</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{compareText}</ReactMarkdown>
+
+                {/* Markdown content */}
+                <div className="px-5 py-4">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {compareText}
+                  </ReactMarkdown>
+                  {isComparing && (
+                    <span className="inline-block w-1.5 h-4 bg-brand-500 animate-pulse ml-0.5 rounded-sm align-middle" />
+                  )}
                 </div>
-                {isComparing && (
-                  <span className="inline-block w-1.5 h-4 bg-brand-500 animate-pulse ml-0.5 rounded-sm mt-1" />
-                )}
                 <div ref={compareBottomRef} />
               </div>
             )}

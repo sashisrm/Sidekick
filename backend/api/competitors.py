@@ -36,7 +36,7 @@ class CompetitorOut(BaseModel):
 class SnapshotOut(BaseModel):
     id: str
     scraped_at: str
-    pricing_tiers: list
+    pricing_tiers: list | dict
     key_features: list
     target_segments: list
     integration_list: list

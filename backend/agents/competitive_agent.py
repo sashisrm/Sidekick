@@ -189,10 +189,17 @@ def _format_competitor_context(comp_data: list[dict]) -> str:
 
             if snap.pricing_tiers:
                 section += "\n**Pricing:**\n"
-                for tier in snap.pricing_tiers[:5]:
-                    section += f"- {tier.get('name', 'Tier')}: {tier.get('price', 'N/A')} {tier.get('billing_period', '')}\n"
-                    if tier.get('features'):
-                        section += "  Features: " + ", ".join(str(f) for f in tier['features'][:5]) + "\n"
+                tiers = snap.pricing_tiers
+                if isinstance(tiers, dict):
+                    # stored as {tier_name: price_string}
+                    for name, price in list(tiers.items())[:8]:
+                        section += f"- {name}: {price}\n"
+                else:
+                    # stored as [{name, price, billing_period, features}]
+                    for tier in tiers[:8]:
+                        section += f"- {tier.get('name', 'Tier')}: {tier.get('price', 'N/A')} {tier.get('billing_period', '')}\n"
+                        if tier.get('features'):
+                            section += "  Features: " + ", ".join(str(f) for f in tier['features'][:5]) + "\n"
 
             if snap.key_features:
                 section += "\n**Key Features:**\n"

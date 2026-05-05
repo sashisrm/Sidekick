@@ -18,21 +18,29 @@ export interface Competitor {
   } | null
 }
 
+export interface PricingTier {
+  name: string
+  price: string
+  billing_period?: string
+  features?: string[]
+}
+
 export interface CompetitorSnapshot {
   id: string
   scraped_at: string
-  pricing_tiers: Array<{
-    name: string
-    price: string
-    billing_period: string
-    features: string[]
-  }>
+  pricing_tiers: PricingTier[] | Record<string, string>
   key_features: string[]
   target_segments: string[]
   integration_list: string[]
   scraped_claims: string[]
   confidence: string
   is_current: boolean
+}
+
+/** Normalise pricing_tiers from either format to PricingTier[] */
+export function normalisePricingTiers(raw: PricingTier[] | Record<string, string>): PricingTier[] {
+  if (Array.isArray(raw)) return raw
+  return Object.entries(raw).map(([name, price]) => ({ name, price }))
 }
 
 export async function listCompetitors(): Promise<Competitor[]> {

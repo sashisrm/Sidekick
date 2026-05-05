@@ -16,7 +16,22 @@
       "Bash(docker builder *)",
       "Bash(docker image *)",
       "Bash(docker exec *)",
-      "Bash(docker restart *)"
+      "Bash(docker restart *)",
+      "Bash(open /Users/sashi/Desktop/TF_projects/SideKick/Architecture.html)",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(docker compose *)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s --max-time 10 http://localhost:8000/health)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl -s http://localhost:8000/docs)",
+      "Bash(curl -s http://localhost:8000/openapi.json)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(m.upper\\(\\), p\\) for p,ops in d['paths'].items\\(\\) for m in ops if m in ['get','post','put','delete']]\")",
+      "Bash(curl -s -X POST http://localhost:8000/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"demo@sidekick.io\",\"password\":\"SideKick@2024\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/auth/login -F username=demo@sidekick.io -F password=SideKick@2024)",
+      "Bash(docker cp *)",
+      "Bash(curl -s -X POST http://localhost:8000/auth/login -F \"username=demo@sidekick.io\" -F \"password=SideKick@2024\")"
     ]
   }
 }

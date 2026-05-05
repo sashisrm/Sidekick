@@ -5,13 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SideKick — Architecture</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg:       #080b12;
+      --bg-card:  #0d1117;
+      --bg-card2: #111620;
+      --border:   rgba(255,255,255,0.07);
+      --border2:  rgba(255,255,255,0.13);
+      --text:     #e2e8f0;
+      --text-2:   #94a3b8;
+      --text-3:   #64748b;
+      --text-4:   #475569;
+      --mono:     'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+      --sans:     'Inter', -apple-system, sans-serif;
+      --c-blue:   #60a5fa;
+      --c-purple: #c084fc;
+      --c-green:  #4ade80;
+      --c-orange: #fb923c;
+      --c-red:    #f87171;
+      --c-cyan:   #22d3ee;
+      --radius:   14px;
+      --radius-sm:8px;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      padding: 40px 24px 60px;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      padding: 52px 24px 80px;
       min-height: 100vh;
       overflow-x: hidden;
     }
@@ -19,20 +43,26 @@
     #canvas {
       position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
-      pointer-events: none; z-index: 0; opacity: 0.25;
+      pointer-events: none; z-index: 0; opacity: 0.2;
     }
 
     .content { position: relative; z-index: 1; }
 
     /* ── Header ── */
     h1 {
-      text-align: center; font-size: 30px; font-weight: 700;
-      color: #f8fafc; margin-bottom: 6px; letter-spacing: -0.5px;
+      text-align: center; font-size: 44px; font-weight: 800;
+      color: #f8fafc; margin-bottom: 10px; letter-spacing: -2px;
+      line-height: 1.1;
       animation: fadeDown 0.6s ease both;
     }
+    h1 .grad {
+      background: linear-gradient(135deg, var(--c-blue) 0%, var(--c-purple) 50%, var(--c-cyan) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
     .subtitle {
-      text-align: center; color: #64748b; font-size: 14px;
-      margin-bottom: 32px; animation: fadeDown 0.6s 0.1s ease both;
+      text-align: center; color: var(--text-3); font-size: 15px;
+      margin-bottom: 40px; animation: fadeDown 0.6s 0.1s ease both;
+      letter-spacing: 0.01em;
     }
 
     @keyframes fadeDown {
@@ -47,19 +77,27 @@
 
     /* ── Status bar ── */
     .status-bar {
-      max-width: 900px; margin: 0 auto 40px;
-      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      max-width: 900px; margin: 0 auto 52px;
+      display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
       animation: fadeDown 0.6s 0.15s ease both;
     }
     .status-item {
-      display: flex; align-items: center; gap: 7px;
-      font-size: 12px; color: #475569;
-      padding: 5px 12px; background: rgba(255,255,255,0.03);
-      border-radius: 20px; border: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 500; color: var(--text-2);
+      padding: 6px 16px;
+      background: var(--bg-card);
+      border-radius: 999px; border: 1px solid var(--border2);
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .status-item:hover {
+      border-color: rgba(255,255,255,0.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     }
     .sdot {
       width: 7px; height: 7px; border-radius: 50%;
-      animation: sdotPulse 2s ease infinite;
+      animation: sdotPulse 2s ease infinite; flex-shrink: 0;
     }
     @keyframes sdotPulse {
       0%,100% { transform: scale(1); opacity: 1; }
@@ -71,72 +109,92 @@
     .sd-red    { background:#f87171; box-shadow:0 0 6px #f87171; animation-delay:.9s; }
     .sd-cyan   { background:#22d3ee; box-shadow:0 0 6px #22d3ee; animation-delay:1.2s; }
 
+    /* ── Section labels ── */
+    .section-label {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    }
+    .section-label::before {
+      content: ''; width: 3px; height: 18px; border-radius: 2px; flex-shrink: 0;
+      background: var(--accent-color, var(--text-3));
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--border2), transparent);
+    }
+    .section-label-text {
+      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-4); white-space: nowrap;
+    }
+
     /* ═══════════════════════════════════════
-       CONNECTION MAP (the main visual)
+       CONNECTION MAP
     ═══════════════════════════════════════ */
     .map-section {
-      max-width: 900px; margin: 0 auto 56px;
+      max-width: 760px; margin: 0 auto 64px;
       animation: fadeUp 0.7s 0.2s ease both;
     }
     .map-title {
-      font-size: 10px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; color: #475569; margin-bottom: 24px;
+      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-4); margin-bottom: 28px;
       text-align: center;
     }
 
-    /* The vertical column of layer nodes + connectors */
-    .map {
-      display: flex; flex-direction: column; align-items: center; gap: 0;
-    }
+    .map { display: flex; flex-direction: column; align-items: center; gap: 0; }
 
-    /* Each layer node */
     .map-node {
-      width: 100%; max-width: 640px;
-      border-radius: 14px; padding: 18px 24px;
-      border: 1px solid; cursor: default;
-      transition: box-shadow 0.25s, transform 0.2s;
-      position: relative;
+      width: 100%; max-width: 680px;
+      border-radius: var(--radius); padding: 0;
+      border: 1px solid var(--border); cursor: default;
+      transition: box-shadow 0.25s, transform 0.2s, border-color 0.2s;
+      position: relative; overflow: hidden;
+      background: var(--bg-card);
     }
-    .map-node:hover { transform: scale(1.015); }
+    .map-node:hover { transform: scale(1.012); border-color: var(--border2); }
 
-    .mn-client { background:#1a1f2e; border-color:#2d5a9e; }
-    .mn-api    { background:#1e1a30; border-color:#5b3fa0; }
-    .mn-ai     { background:#112218; border-color:#2d6a4f; }
-    .mn-data   { background:#251d0f; border-color:#92400e; }
-    .mn-infra  { background:#1f0f0f; border-color:#991b1b; }
+    /* Left accent strip */
+    .map-node::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+    .mn-client::before { background: var(--c-blue); }
+    .mn-api::before    { background: var(--c-purple); }
+    .mn-ai::before     { background: var(--c-green); }
+    .mn-data::before   { background: var(--c-orange); }
+    .mn-infra::before  { background: var(--c-red); }
 
-    .mn-client:hover { box-shadow: 0 0 24px rgba(45,90,158,0.5); }
-    .mn-api:hover    { box-shadow: 0 0 24px rgba(91,63,160,0.5); }
-    .mn-ai:hover     { box-shadow: 0 0 24px rgba(45,106,79,0.5); }
-    .mn-data:hover   { box-shadow: 0 0 24px rgba(146,64,14,0.5); }
-    .mn-infra:hover  { box-shadow: 0 0 24px rgba(153,27,27,0.5); }
+    .mn-client:hover { box-shadow: 0 0 28px rgba(96,165,250,0.1); }
+    .mn-api:hover    { box-shadow: 0 0 28px rgba(192,132,252,0.1); }
+    .mn-ai:hover     { box-shadow: 0 0 28px rgba(74,222,128,0.1); }
+    .mn-data:hover   { box-shadow: 0 0 28px rgba(251,146,60,0.1); }
+    .mn-infra:hover  { box-shadow: 0 0 28px rgba(248,113,113,0.1); }
 
     .mn-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px 10px 20px;
     }
     .mn-icon {
-      width: 32px; height: 32px; border-radius: 8px;
+      width: 36px; height: 36px; border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0;
+      font-size: 18px; flex-shrink: 0;
     }
-    .mn-name { font-size: 14px; font-weight: 700; }
-    .mn-sub  { font-size: 11px; color: #64748b; }
+    .mn-name { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+    .mn-sub  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
-    .mn-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .mn-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 14px 20px; }
     .mn-tag  {
       font-size: 10px; padding: 3px 9px; border-radius: 20px;
-      font-weight: 500; border: 1px solid rgba(255,255,255,0.1);
-      color: #94a3b8; background: rgba(255,255,255,0.04);
+      font-weight: 500; border: 1px solid var(--border);
+      color: var(--text-3); background: rgba(255,255,255,0.03);
+      font-family: var(--mono);
     }
 
     /* ── Connector between nodes ── */
     .connector {
       display: flex; flex-direction: column; align-items: center;
-      position: relative; width: 100%; max-width: 640px;
+      position: relative; width: 100%; max-width: 680px;
       padding: 0; z-index: 2;
     }
 
-    /* The vertical animated line */
     .conn-line {
       width: 2px; height: 28px;
       background: linear-gradient(180deg, var(--c1), var(--c2));
@@ -146,52 +204,49 @@
       content: '';
       position: absolute; top: -100%; left: 0;
       width: 100%; height: 50%;
-      background: white;
-      opacity: 0.6;
+      background: white; opacity: 0.6;
       animation: lineTravel 1.8s linear infinite;
     }
     @keyframes lineTravel {
       0%   { top: -100%; opacity: 0; }
       20%  { opacity: 0.6; }
       80%  { opacity: 0.6; }
-      100% { top: 100%;  opacity: 0; }
+      100% { top: 100%; opacity: 0; }
     }
 
-    /* The info card sitting on the line */
     .conn-card {
-      background: #0f1117;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 10px 20px;
-      display: flex; gap: 24px;
-      align-items: flex-start;
-      position: relative;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-      margin: 0;
+      background: rgba(8,11,18,0.96);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 12px 22px;
+      display: flex; gap: 28px; align-items: flex-start;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+      backdrop-filter: blur(12px);
       transition: border-color 0.2s;
     }
     .conn-card:hover { border-color: rgba(255,255,255,0.22); }
 
-    .conn-col { display: flex; flex-direction: column; gap: 4px; }
+    .conn-col { display: flex; flex-direction: column; gap: 5px; }
     .conn-dir {
       font-size: 10px; font-weight: 700; letter-spacing: 1px;
-      text-transform: uppercase; color: #475569; margin-bottom: 2px;
+      text-transform: uppercase; color: var(--text-4); margin-bottom: 2px;
     }
     .conn-item {
-      display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8;
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; color: var(--text-2);
     }
-    .conn-dot {
-      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-    }
+    .conn-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
     .conn-proto {
-      font-size: 10px; font-weight: 600; padding: 2px 7px;
-      border-radius: 5px; background: rgba(255,255,255,0.06);
-      color: #64748b; white-space: nowrap;
+      font-size: 10px; font-weight: 600; padding: 3px 9px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-3); white-space: nowrap;
+      font-family: var(--mono);
     }
 
-    /* Downward arrow tip */
     .conn-arrow {
-      font-size: 13px; color: #334155; line-height: 1;
+      font-size: 13px; color: var(--text-4); line-height: 1;
       animation: arrowBob 1.4s ease infinite;
     }
     @keyframes arrowBob {
@@ -200,181 +255,205 @@
     }
 
     /* ═══════════════════════════════════════
-       DETAIL LAYERS (expanded cards)
+       DETAIL LAYERS
     ═══════════════════════════════════════ */
     .layers-section {
-      max-width: 1100px; margin: 0 auto 48px;
+      max-width: 1100px; margin: 0 auto 64px;
       animation: fadeUp 0.7s 0.3s ease both;
     }
     .section-title {
-      font-size: 10px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; color: #475569; margin-bottom: 20px;
+      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--text-4); margin-bottom: 22px;
     }
 
     .layer {
-      border-radius: 14px; padding: 20px 24px;
-      border: 1px solid rgba(255,255,255,0.07);
-      margin-bottom: 16px;
-      transition: border-color 0.25s;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      margin-bottom: 14px; overflow: hidden;
+      background: var(--bg-card);
+      transition: border-color 0.25s, box-shadow 0.25s;
     }
-    .layer:hover { border-color: rgba(255,255,255,0.14); }
+    .layer:hover { border-color: var(--border2); }
 
     .layer-label {
       font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
-      text-transform: uppercase; margin-bottom: 14px; opacity: 0.55;
+      text-transform: uppercase; opacity: 0.8;
+      padding: 11px 20px 10px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 9px;
     }
-    .layer-client { background:#1a1f2e; }
-    .layer-api    { background:#141a28; }
-    .layer-ai     { background:#11181f; }
-    .layer-data   { background:#131a1a; }
-    .layer-infra  { background:#181318; }
+    .layer-label::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .layer-client .layer-label { color: var(--c-blue);   background: rgba(96,165,250,0.05); }
+    .layer-api    .layer-label { color: var(--c-purple); background: rgba(192,132,252,0.05); }
+    .layer-ai     .layer-label { color: var(--c-green);  background: rgba(74,222,128,0.05); }
+    .layer-data   .layer-label { color: var(--c-orange); background: rgba(251,146,60,0.05); }
+    .layer-infra  .layer-label { color: var(--c-red);    background: rgba(248,113,113,0.05); }
+    .layer-client .layer-label::before { background: var(--c-blue); box-shadow: 0 0 6px var(--c-blue); }
+    .layer-api    .layer-label::before { background: var(--c-purple); box-shadow: 0 0 6px var(--c-purple); }
+    .layer-ai     .layer-label::before { background: var(--c-green); box-shadow: 0 0 6px var(--c-green); }
+    .layer-data   .layer-label::before { background: var(--c-orange); box-shadow: 0 0 6px var(--c-orange); }
+    .layer-infra  .layer-label::before { background: var(--c-red); box-shadow: 0 0 6px var(--c-red); }
 
-    .boxes { display: flex; flex-wrap: wrap; gap: 10px; }
+    .boxes { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 20px 20px; }
 
     .box {
-      border-radius: 10px; padding: 12px 16px;
+      border-radius: var(--radius-sm); padding: 13px 16px;
       flex: 1 1 150px; min-width: 130px;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.07);
       transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
       cursor: default; position: relative; overflow: hidden;
+      background: var(--bg-card2);
     }
     .box::before {
       content: ''; position: absolute; top: 0; left: -100%;
       width: 60%; height: 100%;
-      background: linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent);
-      transition: left 0.4s;
+      background: linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
+      transition: left 0.5s;
     }
     .box:hover::before { left: 150%; }
-    .box:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.18); }
+    .box:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.16); }
 
-    .box-title { font-size: 12px; font-weight: 600; margin-bottom: 5px; }
-    .box-detail { font-size: 11px; color: #94a3b8; line-height: 1.55; }
+    .box-title  { font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    .box-detail { font-size: 11px; color: var(--text-2); line-height: 1.55; }
     .tag {
-      display: inline-block; font-size: 10px; padding: 2px 7px;
-      border-radius: 20px; margin-top: 5px; font-weight: 500;
+      display: inline-block; font-size: 10px; padding: 2px 8px;
+      border-radius: 20px; margin-top: 6px; font-weight: 600;
+      font-family: var(--mono);
     }
 
-    .blue   { background:#1e3a5f; border-color:#2d5a9e; }
-    .blue   .box-title { color:#60a5fa; }
-    .blue   .tag { background:#1d4ed8; color:#bfdbfe; }
-    .blue:hover { box-shadow:0 6px 20px rgba(30,58,95,.5); }
+    .blue   { border-color: rgba(96,165,250,0.15); }
+    .blue   .box-title { color: var(--c-blue); }
+    .blue   .tag { background: rgba(96,165,250,0.12); color: var(--c-blue); border: 1px solid rgba(96,165,250,0.25); }
+    .blue:hover { box-shadow: 0 6px 24px rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.3); }
 
-    .purple { background:#2d1f4a; border-color:#5b3fa0; }
-    .purple .box-title { color:#c084fc; }
-    .purple .tag { background:#6d28d9; color:#ede9fe; }
-    .purple:hover { box-shadow:0 6px 20px rgba(45,31,74,.5); }
+    .purple { border-color: rgba(192,132,252,0.15); }
+    .purple .box-title { color: var(--c-purple); }
+    .purple .tag { background: rgba(192,132,252,0.12); color: var(--c-purple); border: 1px solid rgba(192,132,252,0.25); }
+    .purple:hover { box-shadow: 0 6px 24px rgba(192,132,252,0.1); border-color: rgba(192,132,252,0.3); }
 
-    .green  { background:#1a3a2a; border-color:#2d6a4f; }
-    .green  .box-title { color:#4ade80; }
-    .green  .tag { background:#166534; color:#bbf7d0; }
-    .green:hover { box-shadow:0 6px 20px rgba(26,58,42,.5); }
+    .green  { border-color: rgba(74,222,128,0.15); }
+    .green  .box-title { color: var(--c-green); }
+    .green  .tag { background: rgba(74,222,128,0.12); color: var(--c-green); border: 1px solid rgba(74,222,128,0.25); }
+    .green:hover { box-shadow: 0 6px 24px rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); }
 
-    .orange { background:#3a2a1a; border-color:#92400e; }
-    .orange .box-title { color:#fb923c; }
-    .orange .tag { background:#c2410c; color:#fed7aa; }
-    .orange:hover { box-shadow:0 6px 20px rgba(58,42,26,.5); }
+    .orange { border-color: rgba(251,146,60,0.15); }
+    .orange .box-title { color: var(--c-orange); }
+    .orange .tag { background: rgba(251,146,60,0.12); color: var(--c-orange); border: 1px solid rgba(251,146,60,0.25); }
+    .orange:hover { box-shadow: 0 6px 24px rgba(251,146,60,0.1); border-color: rgba(251,146,60,0.3); }
 
-    .red    { background:#3a1a1a; border-color:#991b1b; }
-    .red    .box-title { color:#f87171; }
-    .red    .tag { background:#b91c1c; color:#fecaca; }
-    .red:hover { box-shadow:0 6px 20px rgba(58,26,26,.5); }
+    .red    { border-color: rgba(248,113,113,0.15); }
+    .red    .box-title { color: var(--c-red); }
+    .red    .tag { background: rgba(248,113,113,0.12); color: var(--c-red); border: 1px solid rgba(248,113,113,0.25); }
+    .red:hover { box-shadow: 0 6px 24px rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.3); }
 
-    .cyan   { background:#1a2f3a; border-color:#155e75; }
-    .cyan   .box-title { color:#22d3ee; }
-    .cyan   .tag { background:#0e7490; color:#cffafe; }
-    .cyan:hover { box-shadow:0 6px 20px rgba(26,47,58,.5); }
+    .cyan   { border-color: rgba(34,211,238,0.15); }
+    .cyan   .box-title { color: var(--c-cyan); }
+    .cyan   .tag { background: rgba(34,211,238,0.12); color: var(--c-cyan); border: 1px solid rgba(34,211,238,0.25); }
+    .cyan:hover { box-shadow: 0 6px 24px rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); }
 
-    .gray   { background:#1e2030; border-color:#334155; }
-    .gray   .box-title { color:#94a3b8; }
-    .gray   .tag { background:#334155; color:#cbd5e1; }
+    .gray   { border-color: rgba(148,163,184,0.12); }
+    .gray   .box-title { color: var(--text-2); }
+    .gray   .tag { background: rgba(148,163,184,0.08); color: var(--text-2); border: 1px solid rgba(148,163,184,0.2); }
 
     /* ═══════════════════════════════════════
        PIPELINE SECTION
     ═══════════════════════════════════════ */
     .pipeline-section {
-      max-width: 1100px; margin: 0 auto 48px;
+      max-width: 1100px; margin: 0 auto 64px;
       animation: fadeUp 0.7s 0.4s ease both;
     }
 
     .pipeline {
       display: flex; align-items: center; flex-wrap: wrap;
-      row-gap: 10px; margin-bottom: 14px;
-      padding: 14px 16px; border-radius: 10px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.04);
+      row-gap: 10px; margin-bottom: 10px;
+      padding: 14px 18px; border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       transition: background 0.2s, border-color 0.2s;
     }
-    .pipeline:hover { background: rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+    .pipeline:hover { background: var(--bg-card2); border-color: var(--border2); }
 
     .pipeline-label {
-      font-size: 11px; color: #475569; width: 150px;
+      font-size: 11px; color: var(--text-4); width: 150px;
       flex-shrink: 0; font-weight: 700; letter-spacing: 0.5px;
+      font-family: var(--mono);
     }
 
     .step {
-      padding: 7px 12px; border-radius: 8px;
-      font-size: 11px; font-weight: 500; white-space: nowrap;
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
       transition: transform 0.15s, box-shadow 0.15s;
+      font-family: var(--mono);
     }
     .step:hover { transform: scale(1.07); z-index: 2; }
 
     .arrow {
-      font-size: 13px; color: #334155; padding: 0 5px;
+      font-size: 13px; color: var(--text-4); padding: 0 4px;
       display: inline-block; animation: arrowBob 1.6s ease infinite;
     }
     .pipeline:nth-child(2) .arrow { animation-delay: 0.4s; }
     .pipeline:nth-child(3) .arrow { animation-delay: 0.8s; }
     .pipeline:nth-child(4) .arrow { animation-delay: 1.2s; }
 
-    .step-blue   { background:#1e3a5f; color:#60a5fa; border:1px solid #2d5a9e; }
-    .step-purple { background:#2d1f4a; color:#c084fc; border:1px solid #5b3fa0; }
-    .step-green  { background:#1a3a2a; color:#4ade80; border:1px solid #2d6a4f; }
-    .step-orange { background:#3a2a1a; color:#fb923c; border:1px solid #92400e; }
-    .step-cyan   { background:#1a2f3a; color:#22d3ee; border:1px solid #155e75; }
-    .step-red    { background:#3a1a1a; color:#f87171; border:1px solid #991b1b; }
+    .step-blue   { background:rgba(96,165,250,0.1);  color:var(--c-blue);   border:1px solid rgba(96,165,250,0.25); }
+    .step-purple { background:rgba(192,132,252,0.1); color:var(--c-purple); border:1px solid rgba(192,132,252,0.25); }
+    .step-green  { background:rgba(74,222,128,0.1);  color:var(--c-green);  border:1px solid rgba(74,222,128,0.25); }
+    .step-orange { background:rgba(251,146,60,0.1);  color:var(--c-orange); border:1px solid rgba(251,146,60,0.25); }
+    .step-cyan   { background:rgba(34,211,238,0.1);  color:var(--c-cyan);   border:1px solid rgba(34,211,238,0.25); }
+    .step-red    { background:rgba(248,113,113,0.1); color:var(--c-red);    border:1px solid rgba(248,113,113,0.25); }
 
     /* ── Legend ── */
-    .legend {
-      max-width: 1100px; margin: 0 auto;
-      display: flex; flex-wrap: wrap; gap: 16px;
+    .legend-wrap {
+      max-width: 1100px; margin: 56px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 28px;
       animation: fadeUp 0.6s 0.5s ease both;
     }
-    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:#64748b; }
-    .legend-dot  { width:9px; height:9px; border-radius:50%; flex-shrink:0; animation:sdotPulse 2.5s ease infinite; }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    }
+    .legend-item { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-3); }
+    .legend-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; animation:sdotPulse 2.5s ease infinite; }
 
     /* ══════════════════════════════════
        SEQUENCE DIAGRAM
     ══════════════════════════════════ */
     .seq-section {
-      max-width: 1100px; margin: 0 auto 56px;
+      max-width: 1100px; margin: 0 auto 64px;
       animation: fadeUp 0.7s 0.3s ease both;
     }
     .seq-tabs {
       display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
     }
     .seq-tab {
-      padding: 7px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.03); color: #64748b; font-size: 12px;
-      font-weight: 600; cursor: pointer; transition: all 0.2s;
+      padding: 8px 20px; border-radius: 999px;
+      border: 1px solid var(--border2);
+      background: rgba(255,255,255,0.03); color: var(--text-3);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.01em;
+      font-family: var(--sans);
     }
-    .seq-tab:hover  { border-color: rgba(255,255,255,0.25); color: #94a3b8; }
-    .seq-tab.active { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.3); color: #f1f5f9; }
+    .seq-tab:hover { border-color: rgba(255,255,255,0.25); color: var(--text-2); transform: translateY(-1px); }
+    .seq-tab.active {
+      background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.28);
+      color: #f1f5f9; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
 
     .seq-diagram {
-      background: #0a0d14; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 14px; overflow: hidden;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
     }
 
-    /* Actor header row */
     .seq-actors {
-      display: flex; border-bottom: 1px solid rgba(255,255,255,0.07);
-      position: sticky; top: 0; z-index: 10; background: #0a0d14;
+      display: flex; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10; background: var(--bg-card);
     }
     .seq-actor-spacer { width: 120px; flex-shrink: 0; }
     .seq-actor {
       flex: 1; text-align: center; padding: 14px 4px; font-size: 11px;
-      font-weight: 700; letter-spacing: 0.5px; border-left: 1px solid rgba(255,255,255,0.05);
-      position: relative;
+      font-weight: 700; letter-spacing: 0.5px; border-left: 1px solid var(--border);
+      position: relative; font-family: var(--sans);
     }
     .seq-actor-icon { font-size: 18px; display: block; margin-bottom: 4px; }
     .seq-actor-line {
@@ -382,7 +461,6 @@
       height: 8px; background: currentColor; opacity: 0.3;
     }
 
-    /* Body */
     .seq-body { padding: 0; }
     .seq-row {
       display: flex; align-items: center; min-height: 52px;
@@ -396,18 +474,16 @@
     }
     .seq-step-num {
       width: 120px; flex-shrink: 0; padding: 0 16px;
-      font-size: 10px; color: #334155; font-family: monospace;
+      font-size: 10px; color: var(--text-4); font-family: var(--mono);
     }
     .seq-lifelines {
       flex: 1; display: flex; position: relative;
       height: 52px; align-items: center;
     }
-    /* Vertical lifeline per actor */
     .seq-vline {
       position: absolute; top: 0; bottom: 0; width: 1px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.05);
     }
-    /* Horizontal message arrow */
     .seq-msg {
       position: absolute; display: flex; align-items: center;
       height: 24px; z-index: 2;
@@ -428,17 +504,15 @@
     .seq-label {
       position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
       font-size: 10px; white-space: nowrap; padding: 1px 6px;
-      background: #0a0d14; border-radius: 4px; color: #64748b;
+      background: var(--bg-card); border-radius: 4px; color: var(--text-3);
     }
-    /* Activation box on a lifeline */
     .seq-activation {
-      position: absolute; width: 10px; background: rgba(255,255,255,0.12);
+      position: absolute; width: 10px; background: rgba(255,255,255,0.1);
       border-radius: 3px; z-index: 1;
     }
-    /* Self-note box */
     .seq-note {
-      position: absolute; font-size: 9px; color: #64748b;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      position: absolute; font-size: 9px; color: var(--text-3);
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
       border-radius: 4px; padding: 2px 6px; white-space: nowrap; z-index: 3;
       top: 50%; transform: translateY(-50%);
     }
@@ -447,196 +521,175 @@
        LOW LEVEL DESIGN
     ══════════════════════════════════ */
     .lld-section {
-      max-width: 1100px; margin: 0 auto 56px;
+      max-width: 1100px; margin: 0 auto 64px;
       animation: fadeUp 0.7s 0.35s ease both;
     }
     .lld-block {
-      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 14px; padding: 24px; margin-bottom: 20px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; margin-bottom: 14px;
     }
     .lld-block-title {
-      font-size: 13px; font-weight: 700; color: #94a3b8;
-      margin-bottom: 18px; letter-spacing: 0.3px;
+      font-size: 13px; font-weight: 700; color: var(--text-2);
+      margin-bottom: 20px; letter-spacing: 0.3px;
     }
 
-    /* DB tables */
     .lld-tables { display: flex; flex-wrap: wrap; gap: 12px; }
     .lld-table {
-      background: #0a0d14; border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px; overflow: hidden; flex: 1 1 200px; min-width: 180px;
-      transition: box-shadow 0.2s;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); overflow: hidden; flex: 1 1 200px; min-width: 180px;
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
-    .lld-table:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+    .lld-table:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.4); border-color: var(--border2); }
     .lld-table-name {
-      padding: 8px 12px; font-size: 12px; font-weight: 700;
-      border-bottom: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03);
+      padding: 9px 12px; font-size: 12px; font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.025);
+      font-family: var(--mono);
     }
     .lld-row {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.025);
       font-size: 11px;
     }
     .lld-row:last-child { border-bottom: none; }
-    .lld-pk { background: rgba(251,191,36,0.06); }
-    .lld-fk { background: rgba(96,165,250,0.06); }
-    .lld-col { color: #e2e8f0; font-family: monospace; }
-    .lld-type { color: #475569; font-size: 10px; text-align: right; }
+    .lld-pk { background: rgba(251,191,36,0.05); }
+    .lld-fk { background: rgba(96,165,250,0.05); }
+    .lld-col { color: var(--text); font-family: var(--mono); }
+    .lld-pk .lld-col::before { content: '🔑 '; font-size: 9px; }
+    .lld-fk .lld-col::before { content: '🔗 '; font-size: 9px; }
+    .lld-type { color: var(--text-4); font-size: 10px; text-align: right; font-family: var(--mono); }
 
-    /* API table */
-    .lld-api {
-      width: 100%; border-collapse: collapse; font-size: 12px;
-    }
-    .lld-api thead tr { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .lld-api { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .lld-api thead tr { border-bottom: 1px solid var(--border2); }
     .lld-api th {
-      text-align: left; padding: 8px 12px; color: #475569;
+      text-align: left; padding: 8px 12px; color: var(--text-4);
       font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
     }
-    .lld-api td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #94a3b8; }
-    .lld-api tr:hover td { background: rgba(255,255,255,0.02); }
-    .lld-api td:nth-child(3) { color: #64748b; }
-    .lld-api td:nth-child(2) { font-family: monospace; font-size: 11px; color: #e2e8f0; }
+    .lld-api td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-2); }
+    .lld-api tr:hover td { background: rgba(255,255,255,0.025); }
+    .lld-api td:nth-child(3) { color: var(--text-3); }
+    .lld-api td:nth-child(2) { font-family: var(--mono); font-size: 11px; color: var(--text); }
 
     .method {
       display: inline-block; font-size: 10px; font-weight: 700;
-      padding: 2px 7px; border-radius: 4px; font-family: monospace;
+      padding: 3px 8px; border-radius: 5px; font-family: var(--mono);
     }
-    .method.get  { background:#14532d; color:#4ade80; }
-    .method.post { background:#1e3a5f; color:#60a5fa; }
-    .method.del  { background:#450a0a; color:#f87171; }
-    .method.put  { background:#3a2a1a; color:#fb923c; }
+    .method.get  { background:rgba(74,222,128,0.12);  color:var(--c-green);  border:1px solid rgba(74,222,128,0.25); }
+    .method.post { background:rgba(96,165,250,0.12);  color:var(--c-blue);   border:1px solid rgba(96,165,250,0.25); }
+    .method.del  { background:rgba(248,113,113,0.12); color:var(--c-red);    border:1px solid rgba(248,113,113,0.25); }
+    .method.put  { background:rgba(251,146,60,0.12);  color:var(--c-orange); border:1px solid rgba(251,146,60,0.25); }
 
-    /* Module map */
-    .lld-modules { display: flex; flex-wrap: wrap; gap: 14px; }
+    .lld-modules { display: flex; flex-wrap: wrap; gap: 12px; }
     .lld-mod-group {
-      flex: 1 1 280px; background: #0a0d14;
-      border: 1px solid rgba(255,255,255,0.07); border-radius: 10px;
-      padding: 14px;
+      flex: 1 1 280px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 14px; transition: border-color 0.2s;
     }
-    .lld-mod-group-title { font-size: 11px; font-weight: 700; margin-bottom: 10px; font-family: monospace; }
-    .lld-mod { font-size: 11px; color: #64748b; margin-bottom: 6px; font-family: monospace; }
-    .lld-dep { color: #334155; font-size: 10px; }
+    .lld-mod-group:hover { border-color: var(--border2); }
+    .lld-mod-group-title { font-size: 11px; font-weight: 700; margin-bottom: 10px; font-family: var(--mono); }
+    .lld-mod { font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-family: var(--mono); }
+    .lld-dep { color: var(--text-4); font-size: 10px; }
 
     /* ══════════════════════════════════
-       REQUEST TRAVEL SIMULATOR
+       REQUEST JOURNEY SIMULATOR v2
     ══════════════════════════════════ */
-    .sim-section {
+    .sim2-section {
       max-width: 900px; margin: 0 auto 56px;
       animation: fadeUp 0.7s 0.25s ease both;
     }
-    .sim-hint {
-      text-align: center; color: #475569; font-size: 12px; margin-bottom: 20px;
+    .sim2-hint {
+      text-align: center; color: #475569; font-size: 12px; margin-bottom: 16px;
     }
 
-    .sim-buttons {
+    /* Progress bar */
+    .sim2-progress-wrap {
+      height: 3px; background: rgba(255,255,255,0.05); border-radius: 99px;
+      margin-bottom: 22px; overflow: hidden;
+    }
+    .sim2-progress-fill {
+      height: 100%; width: 0; border-radius: 99px;
+      transition: width 0.5s ease, background 0.4s ease;
+    }
+
+    /* Glowing pill scenario buttons */
+    .sim2-buttons {
       display: flex; flex-wrap: wrap; gap: 10px;
-      justify-content: center; margin-bottom: 32px;
+      justify-content: center; margin-bottom: 22px;
     }
-    .sim-btn {
-      padding: 9px 18px; border-radius: 8px; border: 1px solid var(--bc);
-      background: transparent; color: var(--bc); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    .sim2-btn {
+      padding: 8px 22px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04); color: #94a3b8;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.25s ease; letter-spacing: 0.01em;
     }
-    .sim-btn:hover {
-      background: color-mix(in srgb, var(--bc) 15%, transparent);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px color-mix(in srgb, var(--bc) 30%, transparent);
+    .sim2-btn:hover {
+      background: rgba(255,255,255,0.09); color: #e2e8f0;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-    .sim-btn.active {
-      background: color-mix(in srgb, var(--bc) 20%, transparent);
-      box-shadow: 0 0 0 2px var(--bc);
-    }
-
-    /* ── Track ── */
-    .sim-track {
-      display: flex; align-items: center; justify-content: center;
-      gap: 0; flex-wrap: nowrap; overflow-x: auto;
-      padding: 24px 16px; background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;
-      margin-bottom: 20px;
+    .sim2-btn.active {
+      background: color-mix(in srgb, var(--sc) 18%, rgba(0,0,0,0.6));
+      border-color: color-mix(in srgb, var(--sc) 60%, transparent);
+      color: var(--sc);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--sc) 28%, transparent),
+                  inset 0 0 10px color-mix(in srgb, var(--sc) 8%, transparent);
     }
 
-    /* ── Node ── */
-    .sim-node {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      min-width: 88px; padding: 14px 10px; border-radius: 12px;
-      border: 2px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.03);
-      transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
-      flex-shrink: 0;
+    /* SVG canvas */
+    .sim2-svg-wrap {
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px; overflow: hidden;
+      margin-bottom: 20px; padding: 8px 4px;
     }
-    .sim-node.active {
-      border-color: var(--node-color, #60a5fa);
-      box-shadow: 0 0 20px color-mix(in srgb, var(--node-color, #60a5fa) 40%, transparent);
-      background: color-mix(in srgb, var(--node-color, #60a5fa) 10%, transparent);
+    #sim2-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+    /* Pulse ring */
+    @keyframes sim2-ring-pulse {
+      0%   { r: 38; opacity: 0.75; }
+      100% { r: 60; opacity: 0; }
     }
-    .sim-node.done { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); }
-
-    #sn-browser  { --node-color: #60a5fa; }
-    #sn-api      { --node-color: #c084fc; }
-    #sn-ai       { --node-color: #4ade80; }
-    #sn-data     { --node-color: #fb923c; }
-    #sn-infra    { --node-color: #f87171; }
-
-    .sim-icon { font-size: 24px; }
-    .sim-node-name { font-size: 11px; font-weight: 700; color: #64748b; }
-    .sim-node-action {
-      font-size: 9px; color: #94a3b8; text-align: center;
-      min-height: 24px; line-height: 1.4; max-width: 80px;
+    .sim2-pulse-ring {
+      animation: sim2-ring-pulse 1.3s ease-out infinite;
+      pointer-events: none;
     }
 
-    /* ── Connector + animated packet ── */
-    .sim-conn {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 5px; flex-shrink: 0; min-width: 60px;
-    }
-    .sim-conn-line {
-      width: 100%; height: 3px; background: rgba(255,255,255,0.07);
-      border-radius: 2px; position: relative; overflow: visible;
-      min-width: 55px;
-    }
-    .sim-packet {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      width: 12px; height: 12px; border-radius: 50%;
-      background: #60a5fa; box-shadow: 0 0 10px #60a5fa;
-      left: -12px; opacity: 0;
-      transition: none;
-    }
-    .sim-packet.traveling {
-      transition: left 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.15s;
-    }
-    .sim-packet.traveling.go { left: calc(100% + 2px); opacity: 1; }
-    .sim-packet.return-travel {
-      transition: left 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.15s;
-      background: #4ade80; box-shadow: 0 0 10px #4ade80;
-    }
-    .sim-packet.return-travel.go { left: -12px; opacity: 1; }
-
-    .sim-conn-proto {
-      font-size: 9px; font-weight: 600; color: #475569;
-      background: rgba(255,255,255,0.04); padding: 2px 6px;
-      border-radius: 4px; white-space: nowrap;
+    /* Wire transition */
+    path.sim2-wire {
+      transition: opacity 0.35s ease, stroke-width 0.35s ease;
     }
 
-    /* ── Log ── */
-    .sim-log {
-      background: #0a0d14; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 12px; padding: 16px 20px; min-height: 120px;
-      font-size: 12px; font-family: "SF Mono", "Fira Code", monospace;
+    /* Activity log */
+    .sim2-log {
+      background: rgba(10,13,20,0.85);
+      border: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      border-radius: 14px; padding: 16px 20px;
+      min-height: 130px; max-height: 220px; overflow-y: auto;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.4);
     }
-    .sim-log-placeholder { color: #334155; text-align: center; padding-top: 16px; }
-    .sim-log-entry {
-      display: flex; gap: 10px; margin-bottom: 8px;
-      opacity: 0; transform: translateX(-8px);
-      animation: logSlide 0.3s ease forwards;
+    .sim2-log::-webkit-scrollbar { width: 4px; }
+    .sim2-log::-webkit-scrollbar-track { background: transparent; }
+    .sim2-log::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.1); border-radius: 4px;
     }
-    @keyframes logSlide {
-      to { opacity: 1; transform: translateX(0); }
+    .sim2-log-placeholder {
+      color: #334155; text-align: center; padding-top: 20px; font-size: 12px;
     }
-    .log-time { color: #334155; flex-shrink: 0; }
-    .log-layer { font-weight: 700; flex-shrink: 0; min-width: 90px; }
-    .log-msg { color: #94a3b8; }
-    .log-arrow-up { color: #4ade80; }
-    .log-arrow-down { color: #60a5fa; }
+    .sim2-log-entry {
+      display: flex; gap: 8px; align-items: baseline; margin-bottom: 9px;
+    }
+    .sim2-log-ts  { color: #334155; flex-shrink: 0; font-size: 10px; }
+    .sim2-log-layer { font-weight: 700; flex-shrink: 0; min-width: 78px; font-size: 11px; }
+    .sim2-log-msg { color: #94a3b8; font-size: 11px; flex: 1; word-break: break-word; }
+    .sim2-log-badge {
+      font-size: 9px; padding: 1px 7px; border-radius: 4px;
+      background: rgba(255,255,255,0.06); color: #475569;
+      flex-shrink: 0; white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
   </style>
 </head>
 <body>
@@ -645,7 +698,7 @@
 
 <div class="content">
 
-  <h1>SideKick Architecture</h1>
+  <h1>SideKick <span class="grad">Architecture</span></h1>
   <p class="subtitle">AI-powered product intelligence platform · How the layers connect</p>
 
   <div class="status-bar">
@@ -666,7 +719,7 @@
       <!-- 1. BROWSER -->
       <div class="map-node mn-client">
         <div class="mn-header">
-          <div class="mn-icon" style="background:#1e3a5f">🖥️</div>
+          <div class="mn-icon" style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.2)">🖥️</div>
           <div>
             <div class="mn-name" style="color:#60a5fa">Browser (React SPA)</div>
             <div class="mn-sub">What the user sees and interacts with</div>
@@ -711,7 +764,7 @@
       <!-- 2. API -->
       <div class="map-node mn-api">
         <div class="mn-header">
-          <div class="mn-icon" style="background:#2d1f4a">⚡</div>
+          <div class="mn-icon" style="background:rgba(192,132,252,0.12);border:1px solid rgba(192,132,252,0.2)">⚡</div>
           <div>
             <div class="mn-name" style="color:#c084fc">FastAPI Backend</div>
             <div class="mn-sub">Handles all requests, authentication, and business logic</div>
@@ -756,7 +809,7 @@
       <!-- 3. AI -->
       <div class="map-node mn-ai">
         <div class="mn-header">
-          <div class="mn-icon" style="background:#1a3a2a">🤖</div>
+          <div class="mn-icon" style="background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.2)">🤖</div>
           <div>
             <div class="mn-name" style="color:#4ade80">AI Layer — Agents &amp; Retrieval</div>
             <div class="mn-sub">Finds relevant content, builds prompts, calls Claude</div>
@@ -800,7 +853,7 @@
       <!-- 4. DATA -->
       <div class="map-node mn-data">
         <div class="mn-header">
-          <div class="mn-icon" style="background:#3a2a1a">🗄️</div>
+          <div class="mn-icon" style="background:rgba(251,146,60,0.12);border:1px solid rgba(251,146,60,0.2)">🗄️</div>
           <div>
             <div class="mn-name" style="color:#fb923c">Data Layer</div>
             <div class="mn-sub">Persists everything — files, vectors, conversations, snapshots</div>
@@ -841,7 +894,7 @@
       <!-- 5. INFRA -->
       <div class="map-node mn-infra">
         <div class="mn-header">
-          <div class="mn-icon" style="background:#3a1a1a">⚙️</div>
+          <div class="mn-icon" style="background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.2)">⚙️</div>
           <div>
             <div class="mn-name" style="color:#f87171">Infrastructure &amp; Workers</div>
             <div class="mn-sub">Runs background jobs, schedules scraping, hosts containers</div>
@@ -860,77 +913,140 @@
   </div><!-- /map-section -->
 
   <!-- ══════════════════════════════════
-       REQUEST TRAVEL SIMULATOR
+       REQUEST JOURNEY SIMULATOR v2
   ══════════════════════════════════ -->
-  <div class="sim-section">
+  <div class="sim2-section">
     <div class="map-title">Request Journey Simulator</div>
-    <p class="sim-hint">Pick a scenario to watch the request travel through each layer</p>
+    <p class="sim2-hint">Pick a scenario to watch the request travel through each layer in real time</p>
 
-    <div class="sim-buttons">
-      <button class="sim-btn" data-scenario="chat" style="--bc:#60a5fa">💬 Chat Query</button>
-      <button class="sim-btn" data-scenario="upload" style="--bc:#c084fc">📄 Document Upload</button>
-      <button class="sim-btn" data-scenario="scrape" style="--bc:#f87171">🌐 Competitor Scrape</button>
-      <button class="sim-btn" data-scenario="competitive" style="--bc:#22d3ee">⚔️ Competitive Analysis</button>
+    <div class="sim2-progress-wrap">
+      <div class="sim2-progress-fill" id="sim2-progress"></div>
     </div>
 
-    <!-- The visual track -->
-    <div class="sim-track">
+    <div class="sim2-buttons">
+      <button class="sim2-btn" data-scenario="chat"        style="--sc:#60a5fa">💬 Chat Query</button>
+      <button class="sim2-btn" data-scenario="upload"      style="--sc:#c084fc">📄 Document Upload</button>
+      <button class="sim2-btn" data-scenario="scrape"      style="--sc:#f87171">🌐 Competitor Scrape</button>
+      <button class="sim2-btn" data-scenario="competitive" style="--sc:#22d3ee">⚔️ Competitive Analysis</button>
+    </div>
 
-      <div class="sim-node" id="sn-browser">
-        <div class="sim-icon">🖥️</div>
-        <div class="sim-node-name">Browser</div>
-        <div class="sim-node-action" id="sa-browser"></div>
-      </div>
+    <div class="sim2-svg-wrap">
+      <svg id="sim2-svg" viewBox="0 0 900 270" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="f-glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="7" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="f-glow-sm" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="3.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <linearGradient id="wg1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#c084fc" stop-opacity="0.9"/>
+          </linearGradient>
+          <linearGradient id="wg2" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#c084fc" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#4ade80" stop-opacity="0.9"/>
+          </linearGradient>
+          <linearGradient id="wg3" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#4ade80" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#fb923c" stop-opacity="0.9"/>
+          </linearGradient>
+          <linearGradient id="wg4" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#fb923c" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#f87171" stop-opacity="0.9"/>
+          </linearGradient>
+        </defs>
 
-      <div class="sim-conn" id="sc-1">
-        <div class="sim-conn-line"><div class="sim-packet" id="sp-1"></div></div>
-        <div class="sim-conn-proto" id="sp-proto-1"></div>
-      </div>
+        <!-- Wires — S-curve arcs between adjacent nodes -->
+        <path id="sim2-wire-1" class="sim2-wire"
+              d="M 100,135 C 185,135 185,92 270,92"
+              fill="none" stroke="url(#wg1)" stroke-width="2.5" opacity="0.22" stroke-linecap="round"/>
+        <path id="sim2-wire-2" class="sim2-wire"
+              d="M 270,92 C 355,92 365,185 450,185"
+              fill="none" stroke="url(#wg2)" stroke-width="2.5" opacity="0.22" stroke-linecap="round"/>
+        <path id="sim2-wire-3" class="sim2-wire"
+              d="M 450,185 C 535,185 545,92 630,92"
+              fill="none" stroke="url(#wg3)" stroke-width="2.5" opacity="0.22" stroke-linecap="round"/>
+        <path id="sim2-wire-4" class="sim2-wire"
+              d="M 630,92 C 715,92 715,135 800,135"
+              fill="none" stroke="url(#wg4)" stroke-width="2.5" opacity="0.22" stroke-linecap="round"/>
 
-      <div class="sim-node" id="sn-api">
-        <div class="sim-icon">⚡</div>
-        <div class="sim-node-name">FastAPI</div>
-        <div class="sim-node-action" id="sa-api"></div>
-      </div>
+        <!-- Node: Browser (100, 135) -->
+        <g id="sim2-node-browser">
+          <circle class="sim2-outer" cx="100" cy="135" r="42"
+                  fill="rgba(96,165,250,0.04)" stroke="#60a5fa" stroke-width="1" opacity="0.35"/>
+          <circle class="sim2-inner" cx="100" cy="135" r="31"
+                  fill="rgba(10,13,20,0.95)" stroke="#60a5fa" stroke-width="2"/>
+          <text x="100" y="142" text-anchor="middle" font-size="19" font-family="sans-serif">🖥️</text>
+          <text x="100" y="191" text-anchor="middle" font-size="11" font-weight="700"
+                fill="#64748b" font-family="-apple-system,sans-serif">Browser</text>
+          <text x="100" y="204" text-anchor="middle" font-size="9"
+                fill="#475569" font-family="-apple-system,sans-serif">React SPA</text>
+        </g>
 
-      <div class="sim-conn" id="sc-2">
-        <div class="sim-conn-line"><div class="sim-packet" id="sp-2"></div></div>
-        <div class="sim-conn-proto" id="sp-proto-2"></div>
-      </div>
+        <!-- Node: FastAPI (270, 92) -->
+        <g id="sim2-node-api">
+          <circle class="sim2-outer" cx="270" cy="92" r="42"
+                  fill="rgba(192,132,252,0.04)" stroke="#c084fc" stroke-width="1" opacity="0.35"/>
+          <circle class="sim2-inner" cx="270" cy="92" r="31"
+                  fill="rgba(10,13,20,0.95)" stroke="#c084fc" stroke-width="2"/>
+          <text x="270" y="99" text-anchor="middle" font-size="19" font-family="sans-serif">⚡</text>
+          <text x="270" y="148" text-anchor="middle" font-size="11" font-weight="700"
+                fill="#64748b" font-family="-apple-system,sans-serif">FastAPI</text>
+          <text x="270" y="161" text-anchor="middle" font-size="9"
+                fill="#475569" font-family="-apple-system,sans-serif">:8000</text>
+        </g>
 
-      <div class="sim-node" id="sn-ai">
-        <div class="sim-icon">🤖</div>
-        <div class="sim-node-name">AI Layer</div>
-        <div class="sim-node-action" id="sa-ai"></div>
-      </div>
+        <!-- Node: AI Layer (450, 185) -->
+        <g id="sim2-node-ai">
+          <circle class="sim2-outer" cx="450" cy="185" r="42"
+                  fill="rgba(74,222,128,0.04)" stroke="#4ade80" stroke-width="1" opacity="0.35"/>
+          <circle class="sim2-inner" cx="450" cy="185" r="31"
+                  fill="rgba(10,13,20,0.95)" stroke="#4ade80" stroke-width="2"/>
+          <text x="450" y="192" text-anchor="middle" font-size="19" font-family="sans-serif">🤖</text>
+          <text x="450" y="241" text-anchor="middle" font-size="11" font-weight="700"
+                fill="#64748b" font-family="-apple-system,sans-serif">AI Layer</text>
+          <text x="450" y="254" text-anchor="middle" font-size="9"
+                fill="#475569" font-family="-apple-system,sans-serif">Claude + RAG</text>
+        </g>
 
-      <div class="sim-conn" id="sc-3">
-        <div class="sim-conn-line"><div class="sim-packet" id="sp-3"></div></div>
-        <div class="sim-conn-proto" id="sp-proto-3"></div>
-      </div>
+        <!-- Node: Data (630, 92) -->
+        <g id="sim2-node-data">
+          <circle class="sim2-outer" cx="630" cy="92" r="42"
+                  fill="rgba(251,146,60,0.04)" stroke="#fb923c" stroke-width="1" opacity="0.35"/>
+          <circle class="sim2-inner" cx="630" cy="92" r="31"
+                  fill="rgba(10,13,20,0.95)" stroke="#fb923c" stroke-width="2"/>
+          <text x="630" y="99" text-anchor="middle" font-size="19" font-family="sans-serif">🗄️</text>
+          <text x="630" y="148" text-anchor="middle" font-size="11" font-weight="700"
+                fill="#64748b" font-family="-apple-system,sans-serif">Data</text>
+          <text x="630" y="161" text-anchor="middle" font-size="9"
+                fill="#475569" font-family="-apple-system,sans-serif">PG + Chroma</text>
+        </g>
 
-      <div class="sim-node" id="sn-data">
-        <div class="sim-icon">🗄️</div>
-        <div class="sim-node-name">Data</div>
-        <div class="sim-node-action" id="sa-data"></div>
-      </div>
+        <!-- Node: Workers (800, 135) -->
+        <g id="sim2-node-infra">
+          <circle class="sim2-outer" cx="800" cy="135" r="42"
+                  fill="rgba(248,113,113,0.04)" stroke="#f87171" stroke-width="1" opacity="0.35"/>
+          <circle class="sim2-inner" cx="800" cy="135" r="31"
+                  fill="rgba(10,13,20,0.95)" stroke="#f87171" stroke-width="2"/>
+          <text x="800" y="142" text-anchor="middle" font-size="19" font-family="sans-serif">⚙️</text>
+          <text x="800" y="191" text-anchor="middle" font-size="11" font-weight="700"
+                fill="#64748b" font-family="-apple-system,sans-serif">Workers</text>
+          <text x="800" y="204" text-anchor="middle" font-size="9"
+                fill="#475569" font-family="-apple-system,sans-serif">Redis ARQ</text>
+        </g>
 
-      <div class="sim-conn" id="sc-4">
-        <div class="sim-conn-line"><div class="sim-packet" id="sp-4"></div></div>
-        <div class="sim-conn-proto" id="sp-proto-4"></div>
-      </div>
+        <!-- Animated packet + tail -->
+        <circle id="sim2-packet" cx="-99" cy="-99" r="8"  fill="#60a5fa" opacity="0" filter="url(#f-glow)"/>
+        <circle id="sim2-tail"   cx="-99" cy="-99" r="4.5" fill="#60a5fa" opacity="0" filter="url(#f-glow-sm)"/>
+      </svg>
+    </div><!-- /sim2-svg-wrap -->
 
-      <div class="sim-node" id="sn-infra">
-        <div class="sim-icon">⚙️</div>
-        <div class="sim-node-name">Workers</div>
-        <div class="sim-node-action" id="sa-infra"></div>
-      </div>
-
-    </div><!-- /sim-track -->
-
-    <!-- Step log -->
-    <div class="sim-log" id="sim-log">
-      <div class="sim-log-placeholder">↑ Select a scenario above to see the request journey</div>
+    <!-- Activity log -->
+    <div class="sim2-log" id="sim2-log">
+      <div class="sim2-log-placeholder">↑ Select a scenario above to see the request journey</div>
     </div>
   </div>
 
@@ -1230,14 +1346,16 @@
   </div>
 
   <!-- LEGEND -->
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa;box-shadow:0 0 5px #60a5fa"></div>Frontend</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#c084fc;box-shadow:0 0 5px #c084fc;animation-delay:.3s"></div>API</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#4ade80;box-shadow:0 0 5px #4ade80;animation-delay:.6s"></div>AI Agents</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#22d3ee;box-shadow:0 0 5px #22d3ee;animation-delay:.9s"></div>Claude / ML</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#fb923c;box-shadow:0 0 5px #fb923c;animation-delay:1.2s"></div>Databases</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#f87171;box-shadow:0 0 5px #f87171;animation-delay:1.5s"></div>Workers</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;box-shadow:0 0 5px #94a3b8;animation-delay:1.8s"></div>Platform</div>
+  <div class="legend-wrap">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa;box-shadow:0 0 6px #60a5fa"></div>Frontend</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#c084fc;box-shadow:0 0 6px #c084fc;animation-delay:.3s"></div>API</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#4ade80;box-shadow:0 0 6px #4ade80;animation-delay:.6s"></div>AI Agents</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#22d3ee;box-shadow:0 0 6px #22d3ee;animation-delay:.9s"></div>Claude / ML</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fb923c;box-shadow:0 0 6px #fb923c;animation-delay:1.2s"></div>Databases</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f87171;box-shadow:0 0 6px #f87171;animation-delay:1.5s"></div>Workers</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#94a3b8;box-shadow:0 0 6px #94a3b8;animation-delay:1.8s"></div>Platform</div>
+    </div>
   </div>
 
 </div><!-- /content -->
@@ -1506,209 +1624,299 @@
   });
 
   /* ══════════════════════════════════
-     REQUEST TRAVEL SIMULATOR
+     REQUEST JOURNEY SIMULATOR v2
   ══════════════════════════════════ */
-  const SCENARIOS = {
-    chat: {
-      label: 'Chat Query',
-      color: '#60a5fa',
-      steps: [
-        { node: 'browser', proto: '',        dir: 'down', action: 'User types question',          log: '→ POST /chat/send  {query: "What are our pricing tiers?"}' },
-        { node: 'api',     proto: 'HTTP POST', dir: 'down', action: 'Auth + route to RAG agent',   log: '→ Validates JWT · dispatches to RAG agent' },
-        { node: 'ai',      proto: 'async',    dir: 'down', action: 'Embed query · hybrid search',  log: '→ Embed query → ChromaDB top-k · BM25 merge · build prompt' },
-        { node: 'data',    proto: 'ChromaDB', dir: 'up',   action: 'Return top 5 doc chunks',      log: '← chunks: [pricing_guide.pdf §3, deck.pdf §7 …]' },
-        { node: 'ai',      proto: 'Anthropic', dir: 'up',  action: 'Stream tokens from Claude',    log: '← Claude Sonnet streaming · 312 tokens · 3 citations' },
-        { node: 'api',     proto: 'SSE',      dir: 'up',   action: 'Forward stream to browser',    log: '← text/event-stream  data: {"token": "Our pricing …"}' },
-        { node: 'browser', proto: '',         dir: 'up',   action: 'Render streaming answer ✓',    log: '← Answer rendered with source badges' },
-      ]
-    },
-    upload: {
-      label: 'Document Upload',
-      color: '#c084fc',
-      steps: [
-        { node: 'browser', proto: '',          dir: 'down', action: 'User drops a PDF',            log: '→ POST /documents/upload  file: report.pdf (2.3MB)' },
-        { node: 'api',     proto: 'HTTP POST', dir: 'down', action: 'Save file · create DB record', log: '→ Write /uploads/report.pdf · INSERT documents status=pending' },
-        { node: 'data',    proto: 'Postgres',  dir: 'up',   action: 'Document row created',         log: '← doc_id: "abc-123"  status: pending' },
-        { node: 'api',     proto: 'Redis ARQ', dir: 'down', action: 'Enqueue ingest job',           log: '→ arq.enqueue("ingest_document", doc_id="abc-123")' },
-        { node: 'infra',   proto: 'Worker',    dir: 'down', action: 'Extract → chunk → embed',      log: '→ pdfplumber extract · 47 chunks · MiniLM embed' },
-        { node: 'data',    proto: 'ChromaDB',  dir: 'up',   action: 'Store vectors + update status', log: '← ChromaDB upsert 47 vectors · UPDATE status=ready' },
-        { node: 'browser', proto: 'polling',   dir: 'up',   action: 'Status turns green ✓',         log: '← GET /documents/abc-123  {status: "ready", chunks: 47}' },
-      ]
-    },
-    scrape: {
-      label: 'Competitor Scrape',
-      color: '#f87171',
-      steps: [
-        { node: 'browser', proto: '',           dir: 'down', action: 'User adds competitor URL',   log: '→ POST /competitors  {name:"Acme", url:"acme.com"}' },
-        { node: 'api',     proto: 'HTTP POST',  dir: 'down', action: 'Save competitor · enqueue',  log: '→ INSERT competitors · arq.enqueue("scrape_competitor")' },
-        { node: 'infra',   proto: 'Playwright', dir: 'down', action: 'Crawl up to 20 pages',       log: '→ Headless Chromium crawl · pricing + features priority' },
-        { node: 'infra',   proto: 'parse',      dir: 'down', action: 'Extract pricing / features', log: '→ HTML parse · tables / headings / lists extracted' },
-        { node: 'ai',      proto: 'Haiku API',  dir: 'down', action: 'Normalise with Claude Haiku', log: '→ Claude Haiku → structured JSON {pricing, features, claims}' },
-        { node: 'data',    proto: 'Postgres',   dir: 'up',   action: 'Save snapshot · confidence', log: '← INSERT competitor_snapshots  confidence: high' },
-        { node: 'browser', proto: 'polling',    dir: 'up',   action: 'Competitor card updates ✓',  log: '← GET /competitors/xyz  {status: "ready", snapshot: {…}}' },
-      ]
-    },
-    competitive: {
-      label: 'Competitive Analysis',
-      color: '#22d3ee',
-      steps: [
-        { node: 'browser', proto: '',           dir: 'down', action: 'User asks comparison query', log: '→ POST /competitive/analyze  {query:"vs Acme pricing", competitors:["acme"]}' },
-        { node: 'api',     proto: 'HTTP POST',  dir: 'down', action: 'Route to competitive agent', log: '→ Validates JWT · calls competitive_agent.stream()' },
-        { node: 'ai',      proto: 'async',      dir: 'down', action: 'Hybrid-retrieve internal docs', log: '→ Embed query → ChromaDB + BM25 → top internal chunks' },
-        { node: 'data',    proto: 'Postgres',   dir: 'up',   action: 'Fetch competitor snapshots',  log: '← SELECT snapshots WHERE competitor_id=acme ORDER BY created_at DESC' },
-        { node: 'ai',      proto: 'Anthropic',  dir: 'up',   action: 'Merge context · call Sonnet', log: '→ [Internal Docs] + [Competitor: Acme] → Claude Sonnet stream' },
-        { node: 'api',     proto: 'SSE',        dir: 'up',   action: 'Stream analysis to browser',  log: '← text/event-stream  analysis with [Internal] [Acme] citations' },
-        { node: 'browser', proto: '',           dir: 'up',   action: 'Render comparison report ✓',  log: '← Markdown report · feature matrix · pricing diff rendered' },
-      ]
-    }
-  };
-
-  const nodeIds   = ['browser','api','ai','data','infra'];
-  const connIds   = ['1','2','3','4'];
-  const connProtos = { '1':'HTTP/SSE', '2':'async', '3':'SQL/SDK', '4':'Redis ARQ' };
-  let simRunning  = false;
-
-  function resetSim() {
-    nodeIds.forEach(id => {
-      const el = document.getElementById('sn-' + id);
-      el.classList.remove('active','done');
-      document.getElementById('sa-' + id).textContent = '';
-    });
-    connIds.forEach(i => {
-      const p = document.getElementById('sp-' + i);
-      p.className = 'sim-packet';
-      p.style.left = '-12px';
-      p.style.opacity = '0';
-      p.style.background = '#60a5fa';
-      p.style.boxShadow = '0 0 10px #60a5fa';
-      document.getElementById('sp-proto-' + i).textContent = connProtos[i];
-    });
-    document.getElementById('sim-log').innerHTML = '';
-  }
-
-  function nodeIndex(id) { return nodeIds.indexOf(id); }
-
-  function connBetween(a, b) {
-    const ia = nodeIndex(a), ib = nodeIndex(b);
-    const mn = Math.min(ia, ib);
-    return mn + 1; // connector index
-  }
-
-  function activateNode(id, action, color) {
-    const el = document.getElementById('sn-' + id);
-    el.classList.add('active');
-    el.style.setProperty('--node-color', color);
-    document.getElementById('sa-' + id).textContent = action;
-  }
-
-  function deactivateNode(id) {
-    const el = document.getElementById('sn-' + id);
-    el.classList.remove('active');
-    el.classList.add('done');
-  }
-
-  function animatePacket(connIdx, dir, color) {
-    return new Promise(resolve => {
-      const p = document.getElementById('sp-' + connIdx);
-      p.style.background = color;
-      p.style.boxShadow = '0 0 10px ' + color;
-      p.style.opacity = '0';
-      p.className = 'sim-packet';
-
-      if (dir === 'down') {
-        p.style.left = '-12px';
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            p.className = 'sim-packet traveling';
-            p.style.opacity = '1';
-            p.style.left = 'calc(100% + 2px)';
-            setTimeout(() => { p.style.opacity = '0'; resolve(); }, 650);
-          });
-        });
-      } else {
-        p.style.left = 'calc(100% + 2px)';
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            p.className = 'sim-packet return-travel';
-            p.style.opacity = '1';
-            p.style.left = '-12px';
-            setTimeout(() => { p.style.opacity = '0'; resolve(); }, 600);
-          });
-        });
+  (function() {
+    const SCENARIOS = {
+      chat: {
+        color: '#60a5fa',
+        badges: ['1.2 KB','0.8 KB','384-dim','8 chunks','312 tok','5.3 KB',''],
+        steps: [
+          { node:'browser', log:'→ POST /chat/send  {query: "What are our pricing tiers?"}' },
+          { node:'api',     log:'→ Validates JWT · dispatches to RAG agent' },
+          { node:'ai',      log:'→ Embed query → ChromaDB top-k · BM25 merge · build prompt' },
+          { node:'data',    log:'← chunks: [pricing_guide.pdf §3, deck.pdf §7 …]' },
+          { node:'ai',      log:'← Claude Sonnet streaming · 312 tokens · 3 citations' },
+          { node:'api',     log:'← text/event-stream  data: {"token": "Our pricing …"}' },
+          { node:'browser', log:'← Answer rendered with source badges ✓' },
+        ]
+      },
+      upload: {
+        color: '#c084fc',
+        badges: ['2.3 MB','0.2 KB','0.1 KB','0.1 KB','47 chunks','384-dim','0.3 KB'],
+        steps: [
+          { node:'browser', log:'→ POST /documents/upload  file: report.pdf (2.3 MB)' },
+          { node:'api',     log:'→ Write /uploads/report.pdf · INSERT documents status=pending' },
+          { node:'data',    log:'← doc_id: "abc-123"  status: pending' },
+          { node:'api',     log:'→ arq.enqueue("ingest_document", doc_id="abc-123")' },
+          { node:'infra',   log:'→ pdfplumber extract · 47 chunks · MiniLM embed' },
+          { node:'data',    log:'← ChromaDB upsert 47 vectors · UPDATE status=ready' },
+          { node:'browser', log:'← GET /documents/abc-123  {status: "ready", chunks: 47} ✓' },
+        ]
+      },
+      scrape: {
+        color: '#f87171',
+        badges: ['0.1 KB','0.2 KB','20 pages','15 tables','1.2 KB','4.5 KB','0.3 KB'],
+        steps: [
+          { node:'browser', log:'→ POST /competitors  {name:"Acme", url:"acme.com"}' },
+          { node:'api',     log:'→ INSERT competitors · arq.enqueue("scrape_competitor")' },
+          { node:'infra',   log:'→ Headless Chromium crawl · pricing + features priority' },
+          { node:'infra',   log:'→ HTML parse · tables / headings / lists extracted' },
+          { node:'ai',      log:'→ Claude Haiku → structured JSON {pricing, features, claims}' },
+          { node:'data',    log:'← INSERT competitor_snapshots  confidence: high' },
+          { node:'browser', log:'← GET /competitors/xyz  {status:"ready", snapshot:{…}} ✓' },
+        ]
+      },
+      competitive: {
+        color: '#22d3ee',
+        badges: ['0.8 KB','0.2 KB','8 chunks','4.5 KB','2.1 KB','6.2 KB',''],
+        steps: [
+          { node:'browser', log:'→ POST /competitive/analyze  {query:"vs Acme pricing"}' },
+          { node:'api',     log:'→ Validates JWT · calls competitive_agent.stream()' },
+          { node:'ai',      log:'→ Embed query → ChromaDB + BM25 → top internal chunks' },
+          { node:'data',    log:'← SELECT snapshots WHERE competitor_id=acme ORDER BY created_at DESC' },
+          { node:'ai',      log:'→ [Internal Docs] + [Competitor: Acme] → Claude Sonnet stream' },
+          { node:'api',     log:'← text/event-stream  analysis with [Internal] [Acme] citations' },
+          { node:'browser', log:'← Markdown report · feature matrix · pricing diff rendered ✓' },
+        ]
       }
-    });
-  }
+    };
 
-  function addLog(dir, layer, msg, color, delay) {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const log = document.getElementById('sim-log');
-        const now = new Date();
-        const ts = `${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
-        const arrow = dir === 'down' ? '<span class="log-arrow-down">↓</span>' : '<span class="log-arrow-up">↑</span>';
-        const entry = document.createElement('div');
-        entry.className = 'sim-log-entry';
-        entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-layer" style="color:${color}">${arrow} ${layer}</span><span class="log-msg">${msg}</span>`;
-        log.appendChild(entry);
-        log.scrollTop = log.scrollHeight;
-        resolve();
-      }, delay);
-    });
-  }
+    const NODE_ORDER  = ['browser','api','ai','data','infra'];
+    const NODE_COLORS = { browser:'#60a5fa', api:'#c084fc', ai:'#4ade80', data:'#fb923c', infra:'#f87171' };
+    const NODE_LABELS = { browser:'Browser', api:'FastAPI', ai:'AI Layer', data:'Data', infra:'Workers' };
+    const NODE_CX     = { browser:100, api:270, ai:450, data:630, infra:800 };
+    const NODE_CY     = { browser:135, api:92,  ai:185, data:92,  infra:135 };
 
-  async function runScenario(key) {
-    if (simRunning) return;
-    simRunning = true;
+    let running = false;
 
-    document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`[data-scenario="${key}"]`).classList.add('active');
+    function hexRgb(hex) {
+      return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+    }
+    function wireForHop(from, to) {
+      const ia = NODE_ORDER.indexOf(from), ib = NODE_ORDER.indexOf(to);
+      if (ia < 0 || ib < 0 || from === to) return null;
+      if (ib === ia + 1) return ib;
+      if (ib === ia - 1) return ia;
+      return null;
+    }
+    function hopDir(from, to) {
+      return NODE_ORDER.indexOf(to) > NODE_ORDER.indexOf(from) ? 'fwd' : 'rev';
+    }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    const s = SCENARIOS[key];
-    resetSim();
+    function setNodeState(id, state, color) {
+      const g = document.getElementById('sim2-node-' + id);
+      if (!g) return;
+      const outer = g.querySelector('.sim2-outer');
+      const inner = g.querySelector('.sim2-inner');
+      const c = color || NODE_COLORS[id];
+      const rgb = hexRgb(c);
+      const ownRgb = hexRgb(NODE_COLORS[id]);
 
-    const nodeLabels = { browser:'Browser', api:'FastAPI', ai:'AI Layer', data:'Data', infra:'Workers' };
-    const nodeColors = { browser:'#60a5fa', api:'#c084fc', ai:'#4ade80', data:'#fb923c', infra:'#f87171' };
+      // Remove old pulse ring
+      const oldRing = g.querySelector('.sim2-pulse-ring');
+      if (oldRing) oldRing.remove();
 
-    let prevNode = null;
-    let stepDelay = 0;
-
-    for (let i = 0; i < s.steps.length; i++) {
-      const step = s.steps[i];
-      const delay = stepDelay;
-
-      // Move packet between previous node and this node
-      if (prevNode !== null && prevNode !== step.node) {
-        const ci = connBetween(prevNode, step.node);
-        if (ci >= 1 && ci <= 4) {
-          await new Promise(r => setTimeout(r, 300));
-          await animatePacket(ci, step.dir, nodeColors[step.node]);
+      if (state === 'active') {
+        if (outer) {
+          outer.setAttribute('fill', `rgba(${rgb},0.13)`);
+          outer.setAttribute('opacity', '1');
+          outer.setAttribute('stroke', c);
+          outer.setAttribute('stroke-width', '2');
+        }
+        if (inner) {
+          inner.setAttribute('stroke', c);
+          inner.setAttribute('stroke-width', '3');
+          inner.setAttribute('fill', `rgba(${rgb},0.08)`);
+        }
+        // Add animated pulse ring
+        const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        ring.setAttribute('class', 'sim2-pulse-ring');
+        ring.setAttribute('cx', String(NODE_CX[id]));
+        ring.setAttribute('cy', String(NODE_CY[id]));
+        ring.setAttribute('r', '38');
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', c);
+        ring.setAttribute('stroke-width', '2');
+        g.insertBefore(ring, g.firstChild);
+      } else if (state === 'done') {
+        if (outer) {
+          outer.setAttribute('fill', `rgba(${ownRgb},0.06)`);
+          outer.setAttribute('opacity', '0.65');
+          outer.setAttribute('stroke', NODE_COLORS[id]);
+          outer.setAttribute('stroke-width', '1');
+        }
+        if (inner) {
+          inner.setAttribute('stroke', NODE_COLORS[id]);
+          inner.setAttribute('stroke-width', '1.5');
+          inner.setAttribute('fill', 'rgba(10,13,20,0.95)');
+        }
+      } else { // idle
+        if (outer) {
+          outer.setAttribute('fill', `rgba(${ownRgb},0.04)`);
+          outer.setAttribute('opacity', '0.35');
+          outer.setAttribute('stroke', NODE_COLORS[id]);
+          outer.setAttribute('stroke-width', '1');
+        }
+        if (inner) {
+          inner.setAttribute('stroke', NODE_COLORS[id]);
+          inner.setAttribute('stroke-width', '2');
+          inner.setAttribute('fill', 'rgba(10,13,20,0.95)');
         }
       }
-
-      // Deactivate previous node
-      if (prevNode && prevNode !== step.node) deactivateNode(prevNode);
-
-      // Activate current node
-      activateNode(step.node, step.action, nodeColors[step.node]);
-      await addLog(step.dir, nodeLabels[step.node], step.log, nodeColors[step.node], 0);
-      await new Promise(r => setTimeout(r, 700));
-
-      prevNode = step.node;
     }
 
-    // Final: deactivate all
-    if (prevNode) deactivateNode(prevNode);
-    simRunning = false;
-  }
+    function litWire(n) {
+      const w = document.getElementById('sim2-wire-' + n);
+      if (w) { w.style.opacity = '0.9'; w.style.strokeWidth = '4px'; }
+    }
+    function dimWire(n) {
+      const w = document.getElementById('sim2-wire-' + n);
+      if (w) { w.style.opacity = '0.18'; w.style.strokeWidth = '2.5px'; }
+    }
 
-  document.querySelectorAll('.sim-btn').forEach(btn => {
-    btn.addEventListener('click', () => runScenario(btn.dataset.scenario));
-  });
+    function animatePacket(wireN, dir, color, duration) {
+      return new Promise(resolve => {
+        const pathEl = document.getElementById('sim2-wire-' + wireN);
+        if (!pathEl || typeof pathEl.getTotalLength !== 'function') { resolve(); return; }
+        const totalLen = pathEl.getTotalLength();
+        const packet = document.getElementById('sim2-packet');
+        const tail   = document.getElementById('sim2-tail');
+        if (!packet || !tail) { resolve(); return; }
 
-  // Set default proto labels
-  connIds.forEach(i => {
-    document.getElementById('sp-proto-' + i).textContent = connProtos[i];
-  });
+        packet.setAttribute('fill', color);
+        packet.setAttribute('opacity', '1');
+        tail.setAttribute('fill', color);
+
+        const start = performance.now();
+        function frame(now) {
+          const raw = Math.min((now - start) / duration, 1);
+          // Ease in-out cubic
+          const t = raw < 0.5 ? 4*raw*raw*raw : 1 - Math.pow(-2*raw+2,3)/2;
+          const pos     = dir === 'fwd' ? t * totalLen : (1-t) * totalLen;
+          const tailPos = dir === 'fwd'
+            ? Math.max(0, pos - 35)
+            : Math.min(totalLen, pos + 35);
+
+          const pt    = pathEl.getPointAtLength(pos);
+          const ptail = pathEl.getPointAtLength(tailPos);
+
+          packet.setAttribute('cx', String(pt.x));
+          packet.setAttribute('cy', String(pt.y));
+          tail.setAttribute('cx', String(ptail.x));
+          tail.setAttribute('cy', String(ptail.y));
+          tail.setAttribute('opacity', String(Math.max(0, 0.4 - t * 0.25)));
+
+          if (raw < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            packet.setAttribute('opacity', '0');
+            tail.setAttribute('opacity', '0');
+            resolve();
+          }
+        }
+        requestAnimationFrame(frame);
+      });
+    }
+
+    async function typeIn(msgEl, text) {
+      const speed = Math.max(7, Math.min(22, Math.floor(1300 / Math.max(text.length, 1))));
+      for (let i = 0; i <= text.length; i++) {
+        msgEl.textContent = text.slice(0, i);
+        if (i < text.length) await sleep(speed);
+      }
+    }
+
+    function appendLog(nodeId, logText, badge, color) {
+      const log = document.getElementById('sim2-log');
+      const placeholder = log.querySelector('.sim2-log-placeholder');
+      if (placeholder) placeholder.remove();
+      const now = new Date();
+      const ts = `${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+      const isDown = logText.startsWith('→');
+      const arrow = isDown
+        ? `<span style="color:#60a5fa">↓</span>`
+        : `<span style="color:#4ade80">↑</span>`;
+      const entry = document.createElement('div');
+      entry.className = 'sim2-log-entry';
+      entry.style.cssText = 'opacity:0;transform:translateX(-8px)';
+      entry.innerHTML = `
+        <span class="sim2-log-ts">${ts}</span>
+        <span class="sim2-log-layer" style="color:${color}">${arrow}&nbsp;${NODE_LABELS[nodeId]}</span>
+        <span class="sim2-log-msg"></span>
+        ${badge ? `<span class="sim2-log-badge">${badge}</span>` : ''}
+      `;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+      requestAnimationFrame(() => {
+        entry.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        entry.style.opacity = '1';
+        entry.style.transform = 'translateX(0)';
+      });
+      return entry.querySelector('.sim2-log-msg');
+    }
+
+    async function runScenario(key) {
+      if (running) return;
+      running = true;
+
+      document.querySelectorAll('.sim2-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`[data-scenario="${key}"]`);
+      if (btn) btn.classList.add('active');
+
+      const s = SCENARIOS[key];
+
+      // Reset everything
+      NODE_ORDER.forEach(id => setNodeState(id, 'idle'));
+      [1,2,3,4].forEach(n => dimWire(n));
+      const pkt = document.getElementById('sim2-packet');
+      const tl  = document.getElementById('sim2-tail');
+      if (pkt) pkt.setAttribute('opacity', '0');
+      if (tl)  tl.setAttribute('opacity', '0');
+      document.getElementById('sim2-log').innerHTML =
+        '<div class="sim2-log-placeholder">Running…</div>';
+
+      const progress = document.getElementById('sim2-progress');
+      if (progress) { progress.style.width = '0'; progress.style.background = s.color; }
+
+      await sleep(300);
+
+      const total = s.steps.length;
+      let prevNode = null;
+
+      for (let i = 0; i < total; i++) {
+        const step = s.steps[i];
+        if (progress) progress.style.width = `${((i+1)/total)*100}%`;
+
+        if (prevNode !== null && prevNode !== step.node) {
+          const wireN = wireForHop(prevNode, step.node);
+          if (wireN) {
+            litWire(wireN);
+            await animatePacket(wireN, hopDir(prevNode, step.node), s.color, 750);
+            dimWire(wireN);
+          } else {
+            await sleep(180); // teleport flash for non-adjacent hops
+          }
+          setNodeState(prevNode, 'done');
+        }
+
+        setNodeState(step.node, 'active', s.color);
+        const msgEl = appendLog(step.node, step.log, s.badges[i] || '', s.color);
+        await typeIn(msgEl, step.log);
+        await sleep(460);
+        prevNode = step.node;
+      }
+
+      if (prevNode) setNodeState(prevNode, 'done');
+      if (progress) progress.style.width = '100%';
+      running = false;
+    }
+
+    document.querySelectorAll('.sim2-btn').forEach(btn => {
+      btn.addEventListener('click', () => runScenario(btn.dataset.scenario));
+    });
+  })();
 
   /* ── Scroll-triggered entrance ── */
   const io = new IntersectionObserver(entries => {
